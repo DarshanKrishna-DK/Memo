@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="735" viewBox="0 0 1200 735" role="img" aria-labelledby="t d">
+<title id="t">Memo architecture</title><desc id="d">Telegram, the React and three.js web museum, Agora and Twilio talk to a FastAPI server. FastAPI uses Postgres as its database and job queue, with LISTEN/NOTIFY feeding server-sent events. A worker runs jobs and ffmpeg. FastAPI calls Sarvam with Groq and Murf as fallbacks, reads flags from self-hosted Flagsmith, and sends incidents to NudgeBee.</desc>
+<defs><pattern id="px" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="2" height="2" fill="#2b4c8a" fill-opacity="0.35"/></pattern>
+<filter id="sg" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6"/></filter><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#a8e27c"/></marker><marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#f0c24a"/></marker></defs>
+<style>.s{font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif}.m{font-family:ui-monospace, 'Cascadia Mono', Consolas, Menlo, 'Courier New', monospace}.ln{fill:none;stroke-width:2.5}.dash{stroke-dasharray:6 5;animation:fl 1.2s linear infinite}@keyframes fl{to{stroke-dashoffset:-11}}.hub{animation:hb 3s ease-in-out infinite}@keyframes hb{50%{opacity:0.35}}@media (prefers-reduced-motion:reduce){*{animation:none!important}.pk{display:none}}</style>
+<rect width="1200" height="735" rx="18" fill="#061431"/><rect width="1200" height="735" rx="18" fill="url(#px)"/><rect x="1.5" y="1.5" width="1197" height="732" rx="17" fill="none" stroke="#173571" stroke-width="3"/>
+<text x="40" y="56" class="s" font-size="24" font-weight="800" fill="#f3f1e2">Architecture</text>
+<text x="210" y="56" class="m" font-size="13" fill="#9fb0d6">solid: requests and data, dashed: fallbacks, flags and alerts</text>
+<path d="M282 120.0 L396 120.0" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="340" y="112" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">updates</text>
+<path d="M284 215.0 L396 215.0" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<text x="340" y="207" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">REST + SSE</text>
+<path d="M282 310.0 L396 310.0" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="340" y="302" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">LLM callbacks</text>
+<path d="M284 405.0 L396 405.0" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<text x="340" y="397" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">voice webhooks</text>
+<path d="M140 247 L140 276" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="192" y="267" class="m" font-size="12" fill="#f3f1e2">live voice</text>
+<path d="M180 278 L180 249" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<path d="M802 120.0 L916 120.0" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="860" y="112" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">speech, text</text>
+<path d="M990 152 L990 181" class="ln dash" stroke="#f0c24a" stroke-opacity="0.9" marker-end="url(#ag)"/>
+<text x="1002" y="169" class="m" font-size="12" fill="#f0c24a">fallback</text>
+<path d="M802 310.0 L916 310.0" class="ln dash" stroke="#f0c24a" stroke-opacity="0.9" marker-end="url(#ag)"/>
+<text x="860" y="302" class="m" font-size="12" text-anchor="middle" fill="#f0c24a">flags</text>
+<path d="M802 405.0 L916 405.0" class="ln dash" stroke="#f0c24a" stroke-opacity="0.9" marker-end="url(#ag)"/>
+<text x="860" y="397" class="m" font-size="12" text-anchor="middle" fill="#f0c24a">incidents</text>
+<path d="M530 437 L530 501" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="430" y="475" class="m" font-size="12" fill="#f3f1e2">SQL, enqueue</text>
+<path d="M670 503 L670 439" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="682" y="475" class="m" font-size="12" fill="#f3f1e2">NOTIFY → SSE</text>
+<path d="M802 535 L916 535" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="860" y="527" class="m" font-size="12" text-anchor="middle" fill="#f3f1e2">jobs</text>
+<path d="M990 503 L990 439" class="ln dash" stroke="#f0c24a" stroke-opacity="0.9" marker-end="url(#ag)"/>
+<text x="1002" y="475" class="m" font-size="12" fill="#f0c24a">incidents</text>
+<path d="M990 567 L990 631" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="1002" y="605" class="m" font-size="12" fill="#f3f1e2">runs</text>
+<rect x="40" y="90" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="52" y="115" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Telegram bot</text><text x="52" y="136" class="m" font-size="12.5" fill="#9fb0d6">photos, voice notes, text</text>
+<rect x="40" y="185" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="52" y="210" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Web museum</text><text x="52" y="231" class="m" font-size="12.5" fill="#9fb0d6">React + three.js, 2D mode</text>
+<rect x="40" y="280" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="52" y="305" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Agora ConvoAI</text><text x="52" y="326" class="m" font-size="12.5" fill="#9fb0d6">live in-room voice</text>
+<rect x="40" y="375" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="52" y="400" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Twilio</text><text x="52" y="421" class="m" font-size="12.5" fill="#9fb0d6">phone invites, calls</text>
+<rect x="920" y="90" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="932" y="115" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Sarvam</text><text x="932" y="136" class="m" font-size="12.5" fill="#9fb0d6">TTS, STT, LLM</text>
+<rect x="920" y="185" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#d9a520" stroke-width="2"/><text x="932" y="210" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Groq / Murf</text><text x="932" y="231" class="m" font-size="12.5" fill="#9fb0d6">LLM and voice fallback</text>
+<rect x="920" y="280" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#d9a520" stroke-width="2"/><text x="932" y="305" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Flagsmith</text><text x="932" y="326" class="m" font-size="12.5" fill="#9fb0d6">self-hosted, local eval</text>
+<rect x="920" y="375" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#d9a520" stroke-width="2"/><text x="932" y="400" class="s" font-size="17" font-weight="800" fill="#f3f1e2">NudgeBee</text><text x="932" y="421" class="m" font-size="12.5" fill="#9fb0d6">webhook incident alerts</text>
+<rect x="397" y="87" width="406" height="351" rx="13" fill="none" stroke="#a8e27c" stroke-width="8" filter="url(#sg)" opacity="0.6" class="hub"/>
+<rect x="400" y="90" width="400" height="345" rx="11" fill="#0b1f4b" stroke="#a8e27c" stroke-width="2.5"/>
+<text x="420" y="130" class="s" font-size="26" font-weight="800" fill="#a8e27c">FastAPI</text>
+<text x="420" y="152" class="m" font-size="11.5" fill="#9fb0d6">routes, auth, SSE stream</text>
+<rect x="414" y="173" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="188" class="m" font-size="13" fill="#f0c24a">telegram/</text><text x="546.8" y="188" class="m" font-size="13" fill="#f3f1e2">capture, commands</text>
+<rect x="414" y="199" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="214" class="m" font-size="13" fill="#f0c24a">ai/</text><text x="546.8" y="214" class="m" font-size="13" fill="#f3f1e2">tagger, STT, TTS, LLM chain</text>
+<rect x="414" y="225" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="240" class="m" font-size="13" fill="#f0c24a">core/</text><text x="546.8" y="240" class="m" font-size="13" fill="#f3f1e2">dates, floors, rooms, routing</text>
+<rect x="414" y="251" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="266" class="m" font-size="13" fill="#f0c24a">voice/</text><text x="546.8" y="266" class="m" font-size="13" fill="#f3f1e2">receptionist, Grandma, Agora</text>
+<rect x="414" y="277" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="292" class="m" font-size="13" fill="#f0c24a">phone/</text><text x="546.8" y="292" class="m" font-size="13" fill="#f3f1e2">invites, call flow</text>
+<rect x="414" y="303" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="318" class="m" font-size="13" fill="#f0c24a">media/</text><text x="546.8" y="318" class="m" font-size="13" fill="#f3f1e2">reels, blur scores</text>
+<rect x="414" y="329" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="344" class="m" font-size="13" fill="#f0c24a">flags.py</text><text x="546.8" y="344" class="m" font-size="13" fill="#f3f1e2">overrides, then Flagsmith</text>
+<rect x="414" y="355" width="372" height="21" rx="3" fill="#03091a" fill-opacity="0.6"/>
+<text x="422" y="370" class="m" font-size="13" fill="#f0c24a">observability/</text><text x="546.8" y="370" class="m" font-size="13" fill="#f3f1e2">NudgeBee incidents</text>
+<rect x="400" y="505" width="400" height="100" rx="9" fill="#0b1f4b" stroke="#a8e27c" stroke-width="2"/><text x="412" y="530" class="s" font-size="17" font-weight="800" fill="#a8e27c">Postgres 16</text><text x="412" y="551" class="m" font-size="12.5" fill="#9fb0d6">one database: data + job queue</text><text x="412" y="569" class="m" font-size="12.5" fill="#9fb0d6">jobs: FOR UPDATE SKIP LOCKED</text><text x="412" y="587" class="m" font-size="12.5" fill="#9fb0d6">LISTEN/NOTIFY → SSE to the browser</text>
+<rect x="920" y="505" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="932" y="530" class="s" font-size="17" font-weight="800" fill="#f3f1e2">Worker</text><text x="932" y="551" class="m" font-size="12.5" fill="#9fb0d6">tagging, reels, follow-ups</text>
+<rect x="920" y="635" width="240" height="60" rx="9" fill="#0b1f4b" stroke="#2b4c8a" stroke-width="2"/><text x="932" y="660" class="s" font-size="17" font-weight="800" fill="#f3f1e2">ffmpeg</text><text x="932" y="681" class="m" font-size="12.5" fill="#9fb0d6">reels, aged voice, audio</text>
+<rect x="40" y="505" width="240" height="190" rx="9" fill="none" stroke="#2b4c8a" stroke-width="1.5" stroke-dasharray="3 4"/>
+<text x="52" y="531" class="s" font-size="15" font-weight="800" fill="#f3f1e2">Legend</text>
+<path d="M54 555 L100 555" class="ln" stroke="#a8e27c" stroke-opacity="0.55" marker-end="url(#ah)"/>
+<text x="112" y="559" class="m" font-size="11.5" fill="#9fb0d6">request / data</text>
+<path d="M54 583 L100 583" class="ln dash" stroke="#f0c24a" marker-end="url(#ag)"/>
+<text x="112" y="587" class="m" font-size="11.5" fill="#9fb0d6">fallback, flags, alert</text>
+<rect x="73" y="607" width="8" height="8" fill="#a8e27c"/>
+<text x="112" y="615" class="m" font-size="11.5" fill="#9fb0d6">packet in flight</text>
+<text x="52" y="645" class="m" font-size="12" fill="#9fb0d6">Media files live on disk</text>
+<text x="52" y="662" class="m" font-size="12" fill="#9fb0d6">and go out as signed URLs.</text>
+<text x="52" y="679" class="m" font-size="12" fill="#9fb0d6">Flags never block a request.</text>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="0.0s" repeatCount="indefinite" path="M282 120.0 L396 120.0"/><animate attributeName="opacity" dur="2.4s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="0.37s" repeatCount="indefinite" path="M284 215.0 L396 215.0"/><animate attributeName="opacity" dur="2.4s" begin="0.37s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f3f1e2" opacity="0"><animateMotion dur="2.4s" begin="1.57s" repeatCount="indefinite" path="M396 215.0 L284 215.0"/><animate attributeName="opacity" dur="2.4s" begin="1.57s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="0.74s" repeatCount="indefinite" path="M282 310.0 L396 310.0"/><animate attributeName="opacity" dur="2.4s" begin="0.74s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="1.11s" repeatCount="indefinite" path="M284 405.0 L396 405.0"/><animate attributeName="opacity" dur="2.4s" begin="1.11s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f3f1e2" opacity="0"><animateMotion dur="2.4s" begin="2.31s" repeatCount="indefinite" path="M396 405.0 L284 405.0"/><animate attributeName="opacity" dur="2.4s" begin="2.31s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="1.48s" repeatCount="indefinite" path="M140 247 L140 276"/><animate attributeName="opacity" dur="2.4s" begin="1.48s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="1.85s" repeatCount="indefinite" path="M180 278 L180 249"/><animate attributeName="opacity" dur="2.4s" begin="1.85s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="2.22s" repeatCount="indefinite" path="M802 120.0 L916 120.0"/><animate attributeName="opacity" dur="2.4s" begin="2.22s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f0c24a" opacity="0"><animateMotion dur="3.2s" begin="2.59s" repeatCount="indefinite" path="M990 152 L990 181"/><animate attributeName="opacity" dur="3.2s" begin="2.59s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f0c24a" opacity="0"><animateMotion dur="3.2s" begin="2.96s" repeatCount="indefinite" path="M802 310.0 L916 310.0"/><animate attributeName="opacity" dur="3.2s" begin="2.96s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f0c24a" opacity="0"><animateMotion dur="3.2s" begin="0.13s" repeatCount="indefinite" path="M802 405.0 L916 405.0"/><animate attributeName="opacity" dur="3.2s" begin="0.13s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="1.3s" repeatCount="indefinite" path="M530 437 L530 501"/><animate attributeName="opacity" dur="2.4s" begin="1.3s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="1.67s" repeatCount="indefinite" path="M670 503 L670 439"/><animate attributeName="opacity" dur="2.4s" begin="1.67s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="2.04s" repeatCount="indefinite" path="M802 535 L916 535"/><animate attributeName="opacity" dur="2.4s" begin="2.04s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#f0c24a" opacity="0"><animateMotion dur="3.2s" begin="1.61s" repeatCount="indefinite" path="M990 503 L990 439"/><animate attributeName="opacity" dur="3.2s" begin="1.61s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+<rect class="pk" x="-3.5" y="-3.5" width="7" height="7" fill="#a8e27c" opacity="0"><animateMotion dur="2.4s" begin="0.38s" repeatCount="indefinite" path="M990 567 L990 631"/><animate attributeName="opacity" dur="2.4s" begin="0.38s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.1;0.85;1"/></rect>
+</svg>

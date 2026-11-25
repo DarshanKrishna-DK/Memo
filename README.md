@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/media/readme/header.svg" width="100%" alt="Memo, your family's memories, a museum you can walk through"></p>
+<p align="center"><img src="media/readme/header.svg" width="100%" alt="Memo, your family's memories, a museum you can walk through"></p>
 
 <p align="center">
   <img alt="Telegram bot" src="https://img.shields.io/badge/Telegram-@memo__ajji__bot-a8e27c?style=for-the-badge&labelColor=0b1f4b">
@@ -17,10 +17,21 @@
   <a href="#-run-it"><b>Run it</b></a>
 </p>
 
-<p align="center"><img src="docs/media/readme/landing-hero.jpg" width="900" alt="The Memo landing page: a pixel-art museum with a floor per year"></p>
+<p align="center"><img src="media/readme/landing-hero.jpg" width="900" alt="The Memo landing page: a pixel-art museum with a floor per year"></p>
 <p align="center"><sub>The landing page. There is no live demo link: Memo runs on a local machine behind a Cloudflare tunnel.</sub></p>
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/readme/museum-reception.jpg" width="100%" alt="The 3D museum lobby: the player stands at the reception desk with the receptionist robot behind it and the guide robot beside it"></td>
+    <td width="50%" align="center"><img src="media/readme/museum-theater.jpg" width="100%" alt="The movie-theater room: Grandma sits beside the big screen showing a family photo while her controls panel is open"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Reception.</b> Ask the receptionist robot for a room; the guide robot walks you there.</sub></td>
+    <td align="center"><sub><b>The theater.</b> Grandma tells the month's memories as a story on the big screen.</sub></td>
+  </tr>
+</table>
+
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🏛️ What is Memo
 
@@ -29,9 +40,9 @@
 - **Ask for anything.** A receptionist robot takes you where you say, by voice: "take me to Diwali 2025". A guide robot walks you there.
 - **Listen.** In the theater, Grandma (Ajji, Dadi or Grandma) tells the memories as a story, in English, Hindi or Kannada, including Hinglish.
 
-<img src="docs/media/readme/flow.svg" width="100%">
+<img src="media/readme/flow.svg" width="100%" alt="From a Telegram message to Grandma's story in six steps">
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## ⚙️ How it works
 
@@ -39,38 +50,13 @@ Memo has two halves. **Capture** happens in Telegram: a message becomes a memory
 
 **One spoken request, "take me to Diwali 2025":**
 
-```mermaid
-sequenceDiagram
-  participant V as Visitor (browser)
-  participant R as Receptionist robot
-  participant S as FastAPI server
-  participant G as Guide robot
-  participant N as Grandma (theater)
-  V->>R: "take me to Diwali 2025" (voice)
-  R->>S: intent + place name
-  S->>S: resolve_place: find the event and room
-  alt more than one match
-    S-->>R: one clarifying question
-    R-->>V: asks which one
-  else one match
-    S->>S: plan_route: lift to the floor, corridor to the door
-    S-->>R: route + a confirmation written from facts
-  end
-  R-->>V: speaks the confirmation
-  S-->>G: route
-  G->>V: "Follow me." walks lift, corridor, door
-  V->>N: sits down in the theater
-  N->>S: tour(room)
-  S->>S: facts worked out in code (count, dates, who sent what)
-  S-->>N: story text, then TTS audio
-  N-->>V: narrates with subtitles, photos on the big screen
-```
+<img src="media/readme/how-it-works.svg" width="100%" alt="One spoken request: you say take me to Diwali 2025, the receptionist hears it, resolve_place and plan_route run in code, the guide robot walks you to the theater, and Grandma narrates from facts">
 
-The model returns an intent and a place name. The server works out the route and the numbers. The model only shapes the wording.
+If more than one event matches, the receptionist asks one clarifying question before it plans a route.
 
 **Floors and rooms.** The first year with memories is the ground floor beside the lobby; each later year is one floor up. Rooms are open, locked, not yet, empty, or closed with care. Memories with an unknown date wait in the attic, shown in the lobby.
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## ✨ Features
 
@@ -97,9 +83,7 @@ The model returns an intent and a place name. The server works out the route and
   </tr>
 </table>
 
-<p align="center"><img src="docs/media/readme/landing-features.jpg" width="640" alt="The landing page feature cards"> &nbsp; <img src="docs/media/readme/landing-mobile.jpg" width="190" alt="The landing page on a phone"></p>
-
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🗣️ Voices and languages
 
@@ -112,14 +96,14 @@ Each character has one Sarvam bulbul:v3 speaker that stays the same across Engli
 | Guide robot | `rohan` | bright, short lines |
 | Phone agent | `advait` | steady and measured for a phone line |
 
-- **Aged voice.** No available voice is an elderly voice, so Grandma's clips go through an ffmpeg chain: slightly lower pitch, slower tempo, longer pauses, a slow pitch wobble, softer highs and a little breath. `GRANDMA_AGE_FX` sets `off`, `subtle` or `strong` (default `strong`). The measurements behind each voice are in [docs/VOICES.md](docs/VOICES.md).
+- **Aged voice.** No available voice is an elderly voice, so Grandma's clips go through an ffmpeg chain: slightly lower pitch, slower tempo, longer pauses, a slow pitch wobble, softer highs and a little breath. `GRANDMA_AGE_FX` sets `off`, `subtle` or `strong` (default `strong`).
 - **Fallbacks.** If Sarvam is unavailable, speech falls back to Murf voices; the language model falls back from Sarvam to Groq.
 - **Hinglish.** Replies mirror the visitor: Hinglish in, Hinglish out; Kanglish in, Kanglish out; native script in, native script out. Roman-script text is voiced with the Hindi or Kannada voice.
 - **One speaker at a time.** A single arbiter in the browser (`web/src/voice/speechArbiter.ts`) decides who may speak: agent, then guide, then short filler clips. A lower-priority claim is dropped, so voices never overlap.
 - **Barge-in.** When you speak, type, or press the mic, everyone stops, queued sentences are dropped and the in-flight request is aborted.
 - **Live voice.** In-room conversation runs through Agora Conversational AI, with a browser-side voice path as the fallback.
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🚩 Flagsmith (feature flags)
 
@@ -149,9 +133,9 @@ docker compose --env-file .env.local --profile flags up -d flagsmith   # dashboa
 cd backend; .venv\Scripts\python scripts\flagsmith_seed.py              # idempotent: project, environments, features, segments
 ```
 
-The seed writes `FLAGSMITH_ENVIRONMENT_KEY` and `FLAGSMITH_API_URL` into `.env.local`. Restart the API and worker afterwards. The Operator panel shows which layer each flag came from. Details, including the first admin and the Render setup, are in [docs/FLAGSMITH.md](docs/FLAGSMITH.md).
+The seed writes `FLAGSMITH_ENVIRONMENT_KEY` and `FLAGSMITH_API_URL` into `.env.local`. Restart the API and worker afterwards. The Operator panel shows which layer each flag came from.
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🐝 NudgeBee (AI-SRE)
 
@@ -169,29 +153,13 @@ One `firing` event is sent per problem (re-sent at most every 5 minutes while op
 
 **Privacy.** Never sent: names, phone numbers, emails, memory text, transcripts, exception messages, raw URLs. Descriptions hold only a job kind, a route template or an exception class, and digit runs and email-like strings are redacted as a backstop. Labels come from a fixed allow-list (an opaque family UUID appears on job events only).
 
-**Setup.** Create an Event Webhook integration in NudgeBee, then set `NUDGEBEE_WEBHOOK_URL`, `NUDGEBEE_TOKEN` and optionally `MEMO_ENV` in `.env.local`. Check it with `cd backend; .venv\Scripts\python scripts\nudgebee_test_event.py`. Turn it off with the `nudgebee_alerts` flag or by unsetting the variables. See [docs/NUDGEBEE.md](docs/NUDGEBEE.md).
+**Setup.** Create an Event Webhook integration in NudgeBee, then set `NUDGEBEE_WEBHOOK_URL`, `NUDGEBEE_TOKEN` and optionally `MEMO_ENV` in `.env.local`. Check it with `cd backend; .venv\Scripts\python scripts\nudgebee_test_event.py`. Turn it off with the `nudgebee_alerts` flag or by unsetting the variables.
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🧱 Architecture
 
-```mermaid
-flowchart LR
-  TG[Telegram bot] -->|updates| API
-  Web[React + three.js museum] <-->|REST + SSE| API
-  Web <-->|live voice| Agora[Agora ConvoAI]
-  Agora -->|LLM callbacks| API
-  Phone[Twilio calls] <--> API
-  API[FastAPI] <--> PG[(Postgres)]
-  PG -->|job queue, LISTEN/NOTIFY| Worker[Worker]
-  Worker --> FF[ffmpeg: reels, audio, blur]
-  API --> Sarvam[Sarvam: TTS, STT, LLM]
-  Sarvam -.fallback.-> Groq[Groq / Murf]
-  API --> Store[(Object storage, signed URLs)]
-  API -.flags.-> FS[Flagsmith]
-  API -.incidents.-> NB[NudgeBee]
-  Worker -.incidents.-> NB
-```
+<img src="media/readme/architecture.svg" width="100%" alt="Architecture: Telegram, the web museum, Agora and Twilio talk to FastAPI; FastAPI uses Postgres as database and job queue with LISTEN/NOTIFY feeding SSE; a worker runs jobs and ffmpeg; Sarvam with Groq and Murf fallbacks; self-hosted Flagsmith; NudgeBee webhook alerts">
 
 | Piece | Where |
 |---|---|
@@ -208,7 +176,7 @@ flowchart LR
 | Landing, HUD, panels, 2D mode | `web/src/pages/` |
 | Voice controller and arbiter | `web/src/voice/` |
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🚀 Run it
 
@@ -250,14 +218,7 @@ On Windows with Docker Desktop, Python 3.12, Node 20+ and `cloudflared` (for the
 
 </details>
 
-<details>
-<summary><b>Deploy to Render</b></summary>
-
-`render.yaml` and the `Dockerfile` define a Docker web service (API, built web app and in-process worker), a persistent disk for media, a Postgres database, and an optional self-hosted Flagsmith service. Steps, webhook setup and the one-consumer-per-bot-token rule for Telegram are in [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
-
-</details>
-
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🧪 Tests
 
@@ -265,7 +226,7 @@ On Windows with Docker Desktop, Python 3.12, Node 20+ and `cloudflared` (for the
 cd backend; .venv\Scripts\python -m pytest -q
 ```
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 📁 Project layout
 
@@ -278,11 +239,11 @@ backend/
 web/
   src/            world/ (3D), pages/ (landing, HUD, 2D), voice/, state/, api/
   public/         brand assets and the museum's character models
-docs/             PRD, build contract, FLAGSMITH.md, NUDGEBEE.md, VOICES.md, DEPLOY_RENDER.md
-docker-compose.yml, start-memo.ps1, render.yaml, Dockerfile
+media/readme/     images used by this README
+docker-compose.yml, start-memo.ps1
 ```
 
-<img src="docs/media/readme/divider.svg" width="100%">
+<img src="media/readme/divider.svg" width="100%">
 
 ## 🙏 Credits and licences
 

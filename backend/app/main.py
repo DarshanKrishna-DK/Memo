@@ -16,7 +16,7 @@ from . import config, db, routes
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("memo")
 
-STARTUP_HOOKS: list = []   # modules may append async callables (e.g. telegram webhook setup)
+STARTUP_HOOKS: list = []   # modules may append async callables run at startup
 
 
 @asynccontextmanager
@@ -50,5 +50,5 @@ async def health() -> dict:
     return {"ok": ok}
 
 
-from . import deploy  # noqa: E402  production wiring (SPA, in-process worker, webhook); keep last so the SPA catch-all is registered after every route
-deploy.install(app, STARTUP_HOOKS)
+from . import spa  # noqa: E402
+spa.mount(app)  # serves web/dist when built; keep last so the SPA catch-all is registered after every route

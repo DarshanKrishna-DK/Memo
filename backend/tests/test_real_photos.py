@@ -1,4 +1,4 @@
-"""Image tests with the owner's REAL photos (D:/Memo/gallery, or REAL_PHOTOS_DIR): DSLR + phone JPEGs of 0.1-17 MB,
+"""Image tests with the owner's REAL photos (D:/Memo/data/gallery, or REAL_PHOTOS_DIR): DSLR + phone JPEGs of 0.1-17 MB,
 portrait/rotated frames, WhatsApp images without EXIF. No image data is faked. The folder is never written to:
 tests that change files work on a copy in a temp dir. Throwaway families are deleted at the end.
 

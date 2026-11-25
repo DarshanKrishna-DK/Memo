@@ -23,8 +23,8 @@ def _path(name: str, default: str) -> Path:
 
 DATABASE_URL = env("DATABASE_URL", "postgresql://memo:memo@localhost:5433/memo")
 APP_SECRET = env("APP_SECRET", "change-me-dev-secret")
-PUBLIC_BASE_URL = (env("PUBLIC_BASE_URL") or env("RENDER_EXTERNAL_URL", "http://localhost:8000")).rstrip("/")   # what Twilio/Agora/Telegram reach
-WEB_BASE_URL = (env("WEB_BASE_URL") or env("RENDER_EXTERNAL_URL", "http://localhost:5173")).rstrip("/")          # the React app
+PUBLIC_BASE_URL = (env("PUBLIC_BASE_URL", "http://localhost:8000")).rstrip("/")   # what Twilio/Agora/Telegram reach
+WEB_BASE_URL = (env("WEB_BASE_URL", "http://localhost:5173")).rstrip("/")          # the React app
 STORAGE_DIR = _path("STORAGE_DIR", "../data/storage")
 GALLERY_DIR = _path("GALLERY_DIR", "../data/gallery")
 DEFAULT_TZ = env("DEFAULT_TZ", "Asia/Kolkata")

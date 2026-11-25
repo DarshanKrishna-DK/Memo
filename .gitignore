@@ -14,3 +14,7 @@ gallery/
 *.log
 .env.*
 !.env.example
+
+# docs kept local only
+docs/
+*.tsbuildinfo
