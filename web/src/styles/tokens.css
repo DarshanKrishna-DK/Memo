@@ -1,0 +1,159 @@
+/* MedSim tokens: "Night ward" pixel system.
+ *
+ * Night is the base theme (navy sky, cream text, lime action).
+ * `.paper` flips any band to parchment (cream ground, navy text).
+ * Square corners everywhere; depth comes from hard pixel bevels, not blur.
+ *
+ * Semantic roles used by the app:
+ *   --primary  lime   → the one main action on screen
+ *   --teal     cyan   → the patient / voice channel   (alias of --accent2)
+ *   --amber    gold   → the nurse agent + its tool calls
+ *   --red / --green   → clinical state only
+ */
+
+:root,
+.night,
+.paper {
+  color-scheme: dark;
+
+  /* raw palette */
+  --background: #0b1f4b;
+  --text: #f3f1e2;
+  --surface: #112a60;
+  --secondary: #173571;
+  --muted: #a7b6d6;
+  --line: #2b4c8a;
+  --bg-deep: #061431;
+  --accent2: #6ad5e7;
+  --destructive: #ff6568;
+  --primary: #a8e27c;
+  --on-primary: #0b1f4b;
+  --field: #0e2457;
+  --gold: #d9a520;
+  --sky-1: #133d7e;
+  --sky-2: #1c61a1;
+  --sky-3: #2481aa;
+
+  /* semantic aliases (what components read) */
+  --bg: var(--background);
+  --surface-2: var(--secondary);
+  --surface-3: #1d3f82;
+  --line-strong: #3d63a8;
+  --ink: var(--text);
+  --ink-2: #d3d8e6;
+  --ink-3: var(--muted);
+
+  --teal: var(--accent2);
+  --teal-strong: #9be6f2;
+  --teal-tint: rgba(106, 213, 231, 0.14);
+  --on-teal: #0b1f4b;
+
+  --amber: var(--gold);
+  --amber-strong: #f0c24a;
+  --amber-tint: rgba(217, 165, 32, 0.16);
+  --on-amber: #0b1f4b;
+
+  --red: var(--destructive);
+  --red-tint: rgba(255, 101, 104, 0.16);
+  --green: var(--primary);
+  --green-tint: rgba(168, 226, 124, 0.16);
+
+  --scrim: #03091aed;
+  --scrim-soft: rgba(3, 9, 26, 0.45);
+  --scene-bg: #0b1f4b;
+  --hint-bg: rgba(6, 20, 49, 0.82);
+  --hint-ink: var(--text);
+
+  /* pixel bevels */
+  --bevel: 0 0 0 2px var(--line), 4px 4px 0 0 var(--bg-deep);
+  --bevel-sm: 0 0 0 2px var(--line), 2px 2px 0 0 var(--bg-deep);
+  --hud-shadow: var(--bevel);
+  --card-hover-shadow: 0 0 0 2px var(--line-strong), 6px 6px 0 0 var(--bg-deep);
+  --step: 2px;
+
+  /* type */
+  --font-sans: 'Amarna', 'Noto Sans Devanagari', 'Noto Sans Kannada', system-ui, sans-serif;
+  --font-display: 'Jersey 10', ui-monospace, monospace;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --display-weight: 400;
+  --display-tracking: 0.02em;
+
+  --t-xs: 12px;
+  --t-sm: 14px;
+  --t-md: 16px;
+  --t-lg: 18px;
+  --t-xl: 24px;
+  --t-2xl: 2.1rem;
+  --t-h2: clamp(2.6rem, 5.6vw, 4.6rem);
+  --t-3xl: clamp(3.6rem, 8vw, 7rem);
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+  --section-y: clamp(48px, 4.5vw, 64px);
+
+  --r-sm: 0;
+  --r-md: 0;
+  --r-lg: 0;
+  --r-pill: 0;
+
+  --ease-std: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decel: cubic-bezier(0, 0, 0, 1);
+  --ease-out: var(--ease-decel);
+  --ease-in-out: var(--ease-std);
+  --d-fast: 0.18s;
+  --d-mid: 0.3s;
+  --d-slow: 0.42s;
+  --stagger: 40ms;
+
+  --hairline-plate: var(--background);
+  --hairline-hi: var(--primary);
+  --hairline-edge: var(--text);
+  --hairline-mid: var(--muted);
+  --hairline-lo: var(--line);
+  --hairline-stroke: 1.2;
+}
+
+/* Must come after the shared block: same specificity, later wins, and the
+   var() aliases above re-resolve against these on .paper elements. */
+.paper {
+  color-scheme: light;
+  --background: #f4f0e1;
+  --text: #0f2753;
+  --surface: #ebe5d0;
+  --secondary: #e2dac2;
+  --muted: #4a5d80;
+  --line: #cbbf9f;
+  --accent2: #1c61a1;
+  --field: #fbf8ee;
+  --destructive: #ac0311;
+  --bg-deep: #b3a57e;
+
+  --surface-3: #d9cfb2;
+  --line-strong: #a89a74;
+  --ink-2: #2c4170;
+  --teal-strong: #134a7c;
+  --teal-tint: rgba(28, 97, 161, 0.1);
+  --on-teal: #ffffff;
+  --amber: #9a6f05;
+  --amber-strong: #7d5a03;
+  --amber-tint: rgba(217, 165, 32, 0.18);
+  --on-amber: #ffffff;
+  --green: #3f7a17;
+  --green-tint: rgba(63, 122, 23, 0.12);
+  --red-tint: rgba(172, 3, 17, 0.08);
+  --card-hover-shadow: 0 0 0 2px var(--line-strong), 6px 6px 0 0 var(--bg-deep);
+  --hairline-plate: var(--background);
+  --hairline-hi: var(--accent2);
+  --hairline-edge: var(--text);
+  --hairline-mid: var(--muted);
+  --hairline-lo: var(--line);
+
+  background: var(--background);
+  color: var(--text);
+}

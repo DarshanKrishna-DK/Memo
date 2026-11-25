@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Memo voice arbiter test</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; background: #15110d; color: #e8dfd0; padding: 24px; max-width: 880px; }
+    .pass { color: #7fd18b; } .fail { color: #ff7b7b; font-weight: bold; }
+    h1 { font-size: 18px; } pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Memo voice: one speaker at a time, interruption under 300 ms</h1>
+  <p>Dev only (vite serves this at <code>/voice-test.html</code>). Runs by itself with synthetic audio, no backend or mic needed.
+     Results are also at <code>window.__voiceTestResult</code>.</p>
+  <pre id="out">running...</pre>
+  <script type="module" src="/src/voice/voiceTest.ts"></script>
+</body>
+</html>

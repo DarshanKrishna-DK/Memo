@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: memo
+      POSTGRES_PASSWORD: memo
+      POSTGRES_DB: memo
+    ports: ["5433:5432"]
+    volumes: ["memo_pg:/var/lib/postgresql/data"]
+    restart: unless-stopped
+
+  # --- Self-hosted Flagsmith (optional; see docs/FLAGSMITH.md) -------------------------------------------------
+  # docker compose --env-file .env.local --profile flags up -d flagsmith
+  # One-shot: creates the separate `flagsmith` database on the existing `db` server if it is missing.
+  flagsmith-db-init:
+    image: postgres:16-alpine
+    profiles: ["flags"]
+    environment:
+      PGPASSWORD: memo
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        until pg_isready -h db -U memo -q; do sleep 1; done;
+        psql -h db -U memo -d memo -tAc "SELECT 1 FROM pg_database WHERE datname='flagsmith'" | grep -q 1
+        || psql -h db -U memo -d memo -c "CREATE DATABASE flagsmith"
+    depends_on: [db]
+    restart: "no"
+
+  flagsmith:
+    image: flagsmith/flagsmith:2.295.2
+    profiles: ["flags"]
+    command: ["migrate-and-serve"]          # one container: migrations, API + dashboard, tasks in a thread
+    ports: ["8001:8000"]
+    environment:
+      DATABASE_URL: postgresql://memo:memo@db:5432/flagsmith
+      DJANGO_SECRET_KEY: ${FLAGSMITH_DJANGO_SECRET_KEY:-}
+      DJANGO_ALLOWED_HOSTS: "*"
+      FLAGSMITH_DOMAIN: localhost:8001
+      ENVIRONMENT: production
+      GUNICORN_WORKERS: "1"
+      GUNICORN_THREADS: "2"
+      TASK_RUN_METHOD: SEPARATE_THREAD
+      USE_POSTGRES_FOR_ANALYTICS: "true"
+      PREVENT_SIGNUP: "true"
+      ALLOW_REGISTRATION_WITHOUT_INVITE: "false"
+      ENABLE_TELEMETRY: "false"
+    depends_on:
+      flagsmith-db-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  memo_pg: {}

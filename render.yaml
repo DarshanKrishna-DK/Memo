@@ -1,0 +1,142 @@
+# Render Blueprint for Memo. Walkthrough, costs and secrets: docs/DEPLOY_RENDER.md
+# Plan ids use Render's current names; the legacy names (starter = 0.5c-512mb, basic-256mb = 0.1c-256mb) are still valid.
+services:
+  # --- Memo: API + web app + in-process job worker + Telegram webhook, one container ---------------------------
+  - type: web
+    name: memo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter                      # 0.5c-512mb. Reel rendering (ffmpeg) is memory-hungry: move to 1c-2g if it gets OOM-killed
+    region: singapore
+    healthCheckPath: /api/health
+    disk:
+      name: memo-data
+      mountPath: /var/data             # photos, voice notes, reels. Services with a disk run a single instance
+      sizeGB: 10
+    envVars:
+      # runtime wiring
+      - key: DATABASE_URL
+        fromDatabase:
+          name: memo-db
+          property: connectionString
+      - key: STORAGE_DIR
+        value: /var/data/storage
+      - key: GALLERY_DIR
+        value: /var/data/gallery
+      - key: RUN_WORKER_IN_PROCESS
+        value: "1"
+      - key: TELEGRAM_MODE
+        value: webhook
+      - key: TELEGRAM_REGISTER_WEBHOOK   # opt-in: "1" makes the app call setWebhook at boot (this takes the bot away from local polling)
+        value: "0"
+      - key: FLAGSMITH_DB_NAME           # app creates this database on memo-db at boot if missing (best effort, see docs)
+        value: flagsmith
+      - key: DEFAULT_TZ
+        value: Asia/Kolkata
+      - key: LLM_PROVIDER
+        value: sarvam
+      - key: MEMO_ENV
+        value: production
+      - key: APP_SECRET
+        generateValue: true
+      # PUBLIC_BASE_URL and WEB_BASE_URL are left unset on purpose: config.py falls back to RENDER_EXTERNAL_URL (the
+      # service's https://memo-xxxx.onrender.com). Set both only when you attach a custom domain.
+      # secrets: entered once in the Dashboard when the Blueprint is created
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MURF_API_KEY
+        sync: false
+      - key: MURF_REGION
+        sync: false
+      - key: AGORA_APP_ID
+        sync: false
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: AGORA_CUSTOMER_ID
+        sync: false
+      - key: AGORA_CUSTOMER_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VOICE_FROM
+        sync: false
+      - key: FLAGSMITH_API_URL           # https://<memo-flags host>/api/v1/ once Flagsmith is up
+        sync: false
+      - key: FLAGSMITH_ENVIRONMENT_KEY
+        sync: false
+      - key: NUDGEBEE_API_KEY
+        sync: false
+      - key: NUDGEBEE_WEBHOOK_URL
+        sync: false
+      - key: NUDGEBEE_TOKEN
+        sync: false
+
+  # --- Self-hosted Flagsmith (dashboard + API) -------------------------------------------------------------------
+  - type: web
+    name: memo-flags
+    runtime: image
+    image:
+      url: docker.io/flagsmith/flagsmith:2.295.2     # same pinned tag as docker-compose.yml; default CMD is migrate-and-serve
+    plan: starter
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: DJANGO_DB_HOST
+        fromDatabase:
+          name: memo-db
+          property: host
+      - key: DJANGO_DB_PORT
+        fromDatabase:
+          name: memo-db
+          property: port
+      - key: DJANGO_DB_USER
+        fromDatabase:
+          name: memo-db
+          property: user
+      - key: DJANGO_DB_PASSWORD
+        fromDatabase:
+          name: memo-db
+          property: password
+      - key: DJANGO_DB_NAME              # a second database on the same Postgres instance (created by the memo service at boot)
+        value: flagsmith
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS        # Render's edge only routes this service's own hostnames; tighten to it after the first deploy
+        value: "*"
+      - key: ENVIRONMENT
+        value: production
+      - key: GUNICORN_WORKERS
+        value: "1"
+      - key: GUNICORN_THREADS
+        value: "2"
+      - key: TASK_RUN_METHOD
+        value: SEPARATE_THREAD
+      - key: USE_POSTGRES_FOR_ANALYTICS
+        value: "true"
+      - key: ALLOW_REGISTRATION_WITHOUT_INVITE   # first admin: open /signup, then set PREVENT_SIGNUP=true (see docs)
+        value: "true"
+      - key: ENABLE_TELEMETRY
+        value: "false"
+      - key: FLAGSMITH_DOMAIN            # set to this service's host (memo-flags.onrender.com) after the first deploy
+        sync: false
+
+databases:
+  - name: memo-db
+    plan: basic-256mb                    # = 0.1c-256mb. Free Postgres expires after 30 days, so use a paid plan
+    region: singapore
+    databaseName: memo
+    user: memo
+    postgresMajorVersion: "16"
+    diskSizeGB: 5
+    ipAllowList: []                      # internal connections only

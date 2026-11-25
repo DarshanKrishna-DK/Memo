@@ -1,0 +1,16 @@
+.env.local
+.env
+node_modules/
+dist/
+.venv/
+__pycache__/
+data/storage/
+*.pyc
+# local-only data: photos, logs, voice samples, screenshots
+data/
+gallery/
+.playwright-mcp/
+.claude/settings.local.json
+*.log
+.env.*
+!.env.example
