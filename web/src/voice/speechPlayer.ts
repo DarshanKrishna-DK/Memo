@@ -2,6 +2,7 @@
  *  last finished sentence is remembered (PRD "Grandma in the theater"). stop() pauses synchronously. */
 import type { Speech } from '../contract';
 import { arbiter, type Source, type Ticket } from './speechArbiter';
+import { boostSpeech, keepSpeechAlive } from './audioUnlock';
 
 export interface Segment { text: string; url: string | null; from?: number; to?: number; start_s: number }
 
@@ -41,7 +42,7 @@ export class SpeechPlayer {
   lastFinished = -1;
   active = false;
 
-  constructor() { this.audio.preload = 'auto'; }
+  constructor() { this.audio.preload = 'auto'; this.audio.volume = 1; }
 
   setRate(r: number) { this.audio.playbackRate = r; }
 
@@ -109,6 +110,8 @@ export class SpeechPlayer {
     const done = () => { if (tok !== this.token) return; this.lastFinished = i; this.run(i + 1, tok); };
     if (!seg.url) { this.timer = window.setTimeout(done, Math.max(900, seg.text.length * 55)); return; }
     const a = this.audio;
+    boostSpeech(a, seg.url);   // full volume, plus gain + limiter through WebAudio when possible
+    keepSpeechAlive(a);
     const needLoad = a.getAttribute('data-url') !== seg.url;
     const seekTo = seg.from ?? 0;
     const start = () => {

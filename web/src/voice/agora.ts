@@ -5,6 +5,8 @@ import AgoraRTC, { type IAgoraRTCClient, type IMicrophoneAudioTrack, type IRemot
 import AgoraRTM, { type RTMClient } from 'agora-rtm';
 import { ApiError, post } from '../api/client';
 import type { VoiceSession } from '../api/types';
+/** Live agent loudness (100 = unity). A little above unity: the agent's TTS arrives quieter than other audio. */
+const AGENT_VOLUME = 140;
 
 try { AgoraRTC.setLogLevel(2); } catch { /* noop */ }
 
@@ -78,6 +80,7 @@ export class AgoraVoice {
       await rtc.subscribe(user, 'audio');
       this.remote = user.audioTrack ?? null;
       this.remote?.play();
+      try { this.remote?.setVolume(AGENT_VOLUME); } catch { /* noop */ }
     });
     rtc.on('user-left', (user) => { if (String(user.uid) === String(session.agentUid) && !this.closed) this.l.onError('The voice agent left. Tap the mic to reconnect.'); });
     await rtc.join(session.appId, session.channel, session.token, session.uid);
@@ -104,7 +107,7 @@ export class AgoraVoice {
 
   setMuted(muted: boolean) { this.mic?.setEnabled(!muted).catch(() => undefined); }
   /** Barge-in / "pause": silence the agent locally at once. */
-  silenceAgent(on: boolean) { try { this.remote?.setVolume(on ? 0 : 100); } catch { /* noop */ } }
+  silenceAgent(on: boolean) { try { this.remote?.setVolume(on ? 0 : AGENT_VOLUME); } catch { /* noop */ } }
 
   async stop() {
     this.closed = true;

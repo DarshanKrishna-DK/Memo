@@ -10,6 +10,7 @@
  */
 import { useWorld } from '../state/worldStore';
 import { voiceMetrics } from './voiceMetrics';
+import { boostSpeech } from './audioUnlock';
 
 export type Source = 'agent' | 'guide' | 'filler';
 const RANK: Record<Source, number> = { agent: 3, guide: 2, filler: 1 };
@@ -25,7 +26,7 @@ class Arbiter {
   private seq = 0;
   private cur: Ticket | null = null;
   private agoraSpeaking = false;
-  private show: { audio: HTMLAudioElement; onEnded?: () => void } | null = null;
+  private show: { audio: HTMLMediaElement; onEnded?: () => void; owned: boolean } | null = null;
   /** Set by the controller: silence / restore the Agora agent track and ask the server to stop it. */
   agoraHooks: { mute(on: boolean): void; interrupt(): void } | null = null;
   lastInterrupt: { reason: string; at: number } | null = null;
@@ -123,7 +124,7 @@ class Arbiter {
     const audio = new Audio(url);
     audio.playbackRate = opts.rate ?? 1;
     audio.volume = this.cur || this.agoraSpeaking ? DUCK : 1;
-    const rec = { audio, onEnded: opts.onEnded };
+    const rec = { audio, onEnded: opts.onEnded, owned: true };
     this.show = rec;
     audio.onended = () => { if (this.show === rec) { this.show = null; rec.onEnded?.(); } };
     void audio.play().catch(() => undefined);
@@ -132,7 +133,17 @@ class Arbiter {
   stopShowcase() {
     const s = this.show;
     this.show = null;
-    if (s) { s.audio.onended = null; try { s.audio.pause(); } catch { /* ignore */ } }
+    if (s && s.owned) { s.audio.onended = null; try { s.audio.pause(); } catch { /* ignore */ } }
+  }
+  /** A showcase video (or reel) with sound joins the showcase track: any voice note stops, and it is ducked while
+   *  an agent talks, never overlapped. The caller owns the element (play/pause/ended). Returns a detach function. */
+  attachShowcaseMedia(media: HTMLMediaElement): () => void {
+    if (this.show?.audio === media) return () => { if (this.show?.audio === media) this.show = null; };
+    this.stopShowcase();
+    const rec = { audio: media, owned: false };
+    this.show = rec;
+    this.applyDuck();
+    return () => { if (this.show === rec) { this.show = null; media.volume = 1; } };
   }
   get showcaseActive() { return !!this.show; }
 }
@@ -144,6 +155,7 @@ if (typeof window !== 'undefined') (window as unknown as { __arbiter: unknown })
  *  played to the end, false when it was cut or refused. */
 export function playClip(source: Source, who: string, url: string): { started: boolean; done: Promise<boolean> } {
   const audio = new Audio(url);
+  boostSpeech(audio, url);   // speech plays at full volume (plus gain/limiter); only the showcase track is ducked
   let resolve!: (v: boolean) => void;
   const done = new Promise<boolean>((r) => { resolve = r; });
   const ticket = arbiter.begin(source, who, {

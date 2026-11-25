@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import * as THREE from 'three';
 import type { ShowcaseItem } from '../contract';
+import { theaterVideo, useTheaterVideo } from '../pages/theaterVideo';
+import { useWorld } from '../state/worldStore';
 import { SCREEN } from './layout';
 import { FONT_DISPLAY, FONT_SANS, PAL, canvasTex, monthName, usePhoto, useFontsReady, wrap } from './textures';
 
@@ -16,6 +19,34 @@ export function TheaterScreen({
   const photo = usePhoto(photoUrl);
   const thumb = usePhoto(item?.kind === 'photo' && !photo ? item.thumb_url : null);
   const src = photo ?? thumb;
+
+  // Video items: the poster until it starts, then the shared <video> as a texture, letterboxed (phone videos are tall).
+  const isVideo = item?.kind === 'video';
+  const vs = useTheaterVideo();
+  const poster = usePhoto(isVideo ? item?.poster_url ?? item?.thumb_url ?? null : null);
+  const vtex = useMemo(() => {
+    if (!isVideo || !vs.url || !theaterVideo.el) return null;
+    const t = new THREE.VideoTexture(theaterVideo.el);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, [isVideo, vs.url]);
+  useEffect(() => () => vtex?.dispose(), [vtex]);
+  const vMap = vs.started && !vs.error && vtex ? vtex : poster;
+  const vAspect = vMap === vtex ? vs.aspect : poster ? (poster.image as { width: number; height: number }).width / Math.max(1, (poster.image as { width: number; height: number }).height) : 16 / 9;
+  const sa = SCREEN.w / SCREEN.h;
+  const vw = vAspect > sa ? SCREEN.w : SCREEN.h * vAspect, vh = vAspect > sa ? SCREEN.w / vAspect : SCREEN.h;
+
+  // Swipe the big screen on a touch device: left = next, right = previous (guests follow the host instead).
+  const swipe = useRef<{ x: number; t: number } | null>(null);
+  const onDown = (e: ThreeEvent<PointerEvent>) => { if (e.nativeEvent.pointerType === 'touch') swipe.current = { x: e.nativeEvent.clientX, t: performance.now() }; };
+  const onUp = (e: ThreeEvent<PointerEvent>) => {
+    const s0 = swipe.current; swipe.current = null;
+    if (!s0) return;
+    const dx = e.nativeEvent.clientX - s0.x;
+    const w = useWorld.getState();
+    if (Math.abs(dx) < 60 || performance.now() - s0.t > 600 || !w.seat || w.museum?.me.is_guest) return;
+    if (dx < 0) w.nextItem(); else w.prevItem();
+  };
 
   // Our own view of the shared texture so the zoom does not move other users' UVs.
   const view = useMemo(() => {
@@ -59,7 +90,7 @@ export function TheaterScreen({
       const voice = item.kind === 'voice';
       g.fillStyle = voice ? PAL.teal : PAL.goldSoft;
       g.font = `600 30px ${FONT_SANS}`;
-      g.fillText(voice ? '♪  A VOICE NOTE' : 'A STORY', W / 2, 110);
+      g.fillText(voice ? '♪  A VOICE NOTE' : item.kind === 'video' ? '▶  A VIDEO' : 'A STORY', W / 2, 110);
       g.fillStyle = PAL.cream;
       g.font = `96px ${FONT_DISPLAY}`;
       const title = wrap(g, item.caption || (voice ? 'Voice note' : 'Untitled'), W * 0.84, 3);
@@ -79,7 +110,7 @@ export function TheaterScreen({
   useEffect(() => () => card.dispose(), [card]);
 
   const captionTex = useMemo(() => {
-    if (!item || item.kind !== 'photo' || !item.caption) return null;
+    if (!item || (item.kind !== 'photo' && item.kind !== 'video') || !item.caption) return null;
     return canvasTex(1280, 140, (g) => {
       g.clearRect(0, 0, 1280, 140);
       const grad = g.createLinearGradient(0, 0, 0, 140);
@@ -117,13 +148,20 @@ export function TheaterScreen({
   });
 
   const showPhoto = item?.kind === 'photo' && !!view;
+  const showVideo = isVideo && !!vMap;
   return (
-    <group>
+    <group onPointerDown={onDown} onPointerUp={onUp}>
       <mesh>
         <planeGeometry args={[SCREEN.w, SCREEN.h]} />
-        <meshBasicMaterial map={showPhoto ? view : card} toneMapped={false} />
+        {showVideo ? <meshBasicMaterial color="#000000" toneMapped={false} /> : <meshBasicMaterial map={showPhoto ? view : card} toneMapped={false} />}
       </mesh>
-      {showPhoto && captionTex && (
+      {showVideo && (
+        <mesh position={[0, 0, 0.003]}>
+          <planeGeometry args={[vw, vh]} />
+          <meshBasicMaterial key={vMap === vtex ? 'v' : 'p'} map={vMap} toneMapped={false} />
+        </mesh>
+      )}
+      {(showPhoto || (showVideo && !vs.playing)) && captionTex && (
         <mesh position={[0, -SCREEN.h / 2 + (SCREEN.h * 140) / 720 / 2, 0.005]}>
           <planeGeometry args={[SCREEN.w, (SCREEN.h * 140) / 720]} />
           <meshBasicMaterial map={captionTex} transparent toneMapped={false} depthWrite={false} />

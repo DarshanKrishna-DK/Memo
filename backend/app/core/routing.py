@@ -1,6 +1,6 @@
 """The guided walk. The server resolves words to a room and draws the route; the client only plays it.
 
-MuseumRoute (web/src/contract.ts): {year, month, event_id, level, needs_lift, room_state, board_text,
+MuseumRoute (web/src/contract.ts): {year, month, event_id, level, floor_number, needs_lift, room_state, board_text,
 waypoints:[{kind: desk|lift|ride|corridor|door|seat, level, door_index?}], walk_seconds}
 """
 from __future__ import annotations
@@ -44,12 +44,12 @@ async def plan_route(family_id, year, month, event_id=None) -> dict:
         ev = await events.get_event(family_id, event_id)
         if (ev["year"], ev["month"]) != (year, month):
             raise ValueError("That event belongs to a different room.")
-    first, last = await museum.year_span(family_id, fam)
-    if year < first or year > last:
-        raise LookupError(f"The museum has no floor for {year} yet. Floors run from {first} to {last}.")
-    level = museum.floor_level(first, year)
+    last = museum.last_year(fam)
+    if year < museum.MIN_YEAR or year > last:
+        raise LookupError(f"The museum has no floor for {year}. Floors run up to {last}.")
+    level = museum.floor_level(year)        # fixed calendar: 2002 = ground (0), 2026 = 24 (floor 25)
     st = await museum.room_state(family_id, year, month)
-    needs_lift = level > 0
+    needs_lift = level != 0
     door = month - 1
     wps: list[dict] = [{"kind": "desk", "level": 0}]
     if needs_lift:
@@ -59,6 +59,7 @@ async def plan_route(family_id, year, month, event_id=None) -> dict:
         wps.append({"kind": "seat", "level": level, "door_index": door})
     return {
         "year": year, "month": month, "event_id": str(event_id) if event_id else None, "level": level,
+        "floor_number": museum.floor_number(year),
         "needs_lift": needs_lift, "room_state": st["state"], "board_text": st["board_text"], "waypoints": wps,
         "walk_seconds": _walk_seconds(await flags.get("cinematic_walk", family_id), needs_lift),
     }

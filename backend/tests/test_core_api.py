@@ -65,7 +65,7 @@ async def test_museum_floor_room_attic(env):
         assert me["role"] == "owner" and me["nickname"] == "Asha"
         m = (await c.get("/api/museum")).json()
         assert m["family"]["grandma_name"] == "Ajji" and m["attic_count"] == 1
-        assert m["floors"][0]["year"] == y and m["floors"][-1]["level"] == 0
+        assert m["floors"][0]["year"] == y and m["floors"][-1]["level"] == 0 and m["floors"][-1]["year"] == 2002
         assert "museum_3d" in m["flags"] and "bot_username" in m
         fl = (await c.get(f"/api/museum/{y - 1}")).json()
         assert len(fl["rooms"]) == 12 and fl["rooms"][3]["state"] == "open" and fl["rooms"][3]["memory_count"] == 2
@@ -100,7 +100,8 @@ async def test_route_events_showcase_media(env):
     y = env["y"]
     async with signed_in(env["id"], env["owner"]) as c:
         r = (await c.post("/api/route", json={"text": f"open April {y - 1}"})).json()
-        assert r["route"]["level"] == 0 and r["route"]["needs_lift"] is False and r["question"] is None
+        assert r["route"]["level"] == y - 1 - 2002 and r["route"]["needs_lift"] is True and r["question"] is None
+        assert r["route"]["floor_number"] == y - 1 - 2001                    # fixed calendar: 2002 = floor 1
         e = (await c.post("/api/events", json={"name": "Holi", "when": f"March {y - 1}"})).json()
         assert e["event"]["kind"] == "festival" and e["room"] == {"year": y - 1, "month": 3}
         assert e["room_state"]["state"] == "locked"

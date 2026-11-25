@@ -4,6 +4,7 @@ import type { MuseumRoute } from '../contract';
 import { CORR_HALF_W, DOORS, LIFT, LIFT_OUT, SEAT_H, doorForMonth, roomFrame, roomPlaces, toWorld } from './layout';
 import { useRuntime, wrapAngle, type WorldRuntime } from './runtime';
 import { guideLine } from './Cast';
+import { floorWithYear } from '../lib/floors';
 
 // The guided walk (PRD "The guided walk", V4): the guide robot steps out and says "Follow me",
 // walks to the lift, rides, walks the corridor, the door opens and the visitor sits. The plan
@@ -233,7 +234,7 @@ export function WalkDirector({
         break;
       }
       case 'ride': {
-        G.say = null;
+        G.say = floorWithYear(seg.to);
         const t = s.segT;
         rt.lift.doorsTarget = t < seg.dur - 0.6 ? 0 : 1;
         const k = Math.max(0, Math.min(1, (t - 0.6) / Math.max(0.1, seg.dur - 1.2)));

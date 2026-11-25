@@ -356,6 +356,51 @@ CREATE TABLE IF NOT EXISTS theater_presence (
 CREATE UNIQUE INDEX IF NOT EXISTS theater_presence_seat ON theater_presence(family_id, year, month, seat) WHERE seat IS NOT NULL;
 CREATE INDEX IF NOT EXISTS theater_presence_room ON theater_presence(family_id, year, month);
 
+-- ===================== videos + cleanup history + timed reels (2026-11-25) =====================
+-- memories.kind gains 'video' (media.type already allows it). Only re-created when the old definition lacks
+-- 'video', so a normal start does not take a table lock.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'memories'::regclass AND conname = 'memories_kind_check'
+                 AND pg_get_constraintdef(oid) LIKE '%video%') THEN
+    ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_kind_check;
+    ALTER TABLE memories ADD CONSTRAINT memories_kind_check
+      CHECK (kind IN ('text','voice','photo','album','forward','video'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'media'::regclass AND conname = 'media_type_check'
+                 AND pg_get_constraintdef(oid) LIKE '%video%') THEN
+    ALTER TABLE media DROP CONSTRAINT IF EXISTS media_type_check;
+    ALTER TABLE media ADD CONSTRAINT media_type_check CHECK (type IN ('photo','voice','video'));
+  END IF;
+END $$;
+-- video media rows: storage_key = original upload, large_key = web H.264/AAC mp4, thumb_key = poster jpg.
+ALTER TABLE media ADD COLUMN IF NOT EXISTS video_error text;
+
+-- Photos removed as blurry (deleted by a person) or never imported (auto-skipped by auto_skip_blurry).
+-- thumb_key is a small copy made at that moment, so history still shows the photo after the files are gone.
+-- No FKs to media/gallery_items on purpose: those rows are deleted.
+CREATE TABLE IF NOT EXISTS cleanup_history (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  family_id       uuid NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+  media_id        uuid,
+  gallery_item_id uuid,
+  memory_id       uuid,
+  event_id        uuid,
+  year            int,
+  month           int CHECK (month BETWEEN 1 AND 12),
+  reason          text NOT NULL CHECK (reason IN ('auto_skipped','deleted')),
+  blur_score      real,
+  thumb_key       text,
+  name            text,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS cleanup_history_room ON cleanup_history(family_id, year, month);
+CREATE UNIQUE INDEX IF NOT EXISTS cleanup_history_media ON cleanup_history(media_id, reason) WHERE media_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS cleanup_history_gallery ON cleanup_history(family_id, gallery_item_id, reason)
+  WHERE gallery_item_id IS NOT NULL AND media_id IS NULL;
+
+ALTER TABLE reels ADD COLUMN IF NOT EXISTS options jsonb NOT NULL DEFAULT '{}'::jsonb;  -- target_s, max_photos, title, voiceover
+
 -- Grandma's cloned voice (Sarvam Instant Voice Cloning, beta). One per family and character; only created from a
 -- consented recording uploaded by the owner (POST /api/voice/clone). docs/VOICES.md has the consent procedure.
 CREATE TABLE IF NOT EXISTS family_voices (

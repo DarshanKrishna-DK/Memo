@@ -154,7 +154,9 @@ export function qrTexture(text: string, caption: string): THREE.CanvasTexture {
 
 // ───────── photos (signed URLs), with a small budgeted cache ─────────
 
-const loader = new THREE.ImageBitmapLoader();
+// Own LoadingManager: photo loads must not trip drei's useProgress (DefaultLoadingManager), which drives the
+// full-screen "Opening the museum" overlay. Otherwise every room / showcase photo brought that overlay back.
+const loader = new THREE.ImageBitmapLoader(new THREE.LoadingManager());
 loader.setOptions({ imageOrientation: 'flipY' });
 
 interface Entry { tex: THREE.Texture | null; refs: number; promise: Promise<THREE.Texture>; failed: boolean }

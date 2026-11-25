@@ -333,6 +333,11 @@ async def run_import(payload: dict) -> dict:
             continue
         if skip_blurry and it["is_blurry"]:
             skipped_blurry += 1
+            try:                                         # GET /api/cleanup/history shows what was left out
+                from ..media import cleanup_history
+                await cleanup_history.record_auto_skipped(fid, it, ev)
+            except Exception:  # noqa: BLE001 - history is best effort; never fail the import over it
+                pass
             continue
         try:
             data = await _read_item(it)

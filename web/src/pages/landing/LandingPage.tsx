@@ -131,7 +131,8 @@ function useNavState(scroller: RefObject<HTMLDivElement>) {
   return { solid, hidden };
 }
 
-export function LandingPage() {
+/** `enter` is set once a Telegram link signed the user in: the sign-in buttons become "Enter your museum". */
+export function LandingPage({ enter }: { enter?: { label: string; onClick: () => void } } = {}) {
   const bot = useBot();
   const link = botUrl(bot);
   const authError = useWorld((s) => s.authError);
@@ -172,7 +173,9 @@ export function LandingPage() {
             {NAV.map((n) => <button key={n.id} type="button" className="lp-nav-link" onClick={() => jump(n.id)}>{n.label}</button>)}
           </nav>
           <div className="lp-nav-end">
-            <button type="button" className="btn btn-ghost btn-sm lp-signin-btn" onClick={openSignin}>Sign in</button>
+            {enter
+              ? <button type="button" className="btn btn-primary btn-sm lp-signin-btn lp-enter-btn" onClick={enter.onClick}>{enter.label}</button>
+              : <button type="button" className="btn btn-ghost btn-sm lp-signin-btn" onClick={openSignin}>Sign in</button>}
             <a className="btn btn-primary btn-sm lp-nav-cta" href={link} target="_blank" rel="noreferrer">Open the Telegram bot</a>
             <button type="button" className="btn btn-sm lp-menu-btn" onClick={() => setMenu(true)} aria-haspopup="dialog">Menu</button>
           </div>
@@ -207,7 +210,9 @@ export function LandingPage() {
               </p>
               <div className="lp-hero-actions lp-enter" style={{ ['--d' as string]: '0.48s' }}>
                 <a className="btn btn-primary btn-lg" href={link} target="_blank" rel="noreferrer">Open the Telegram bot</a>
-                <button type="button" className="btn btn-lg lp-btn-secondary" onClick={openSignin}>Sign in to your museum</button>
+                {enter
+                  ? <button type="button" className="btn btn-lg lp-btn-secondary" onClick={enter.onClick}>{enter.label}</button>
+                  : <button type="button" className="btn btn-lg lp-btn-secondary" onClick={openSignin}>Sign in to your museum</button>}
               </div>
               <button type="button" className="lp-text-link lp-enter" style={{ ['--d' as string]: '0.56s' }} onClick={() => goTo('how')}>
                 How it works <ArrowIcon size={12} />
@@ -401,7 +406,7 @@ export function LandingPage() {
                 <p className="lp-lede">Open the bot, tap Start, and send one photo with a line about it. Its room opens on its own.</p>
                 <div className="lp-hero-actions lp-cta-actions">
                   <a className="btn btn-primary btn-lg" href={link} target="_blank" rel="noreferrer">Open the Telegram bot</a>
-                  <button type="button" className="btn btn-lg lp-btn-secondary" onClick={openSignin}>Sign in</button>
+                  <button type="button" className="btn btn-lg lp-btn-secondary" onClick={enter ? enter.onClick : openSignin}>{enter ? enter.label : 'Sign in'}</button>
                 </div>
               </div>
               <div className="lp-cta-qr">
@@ -423,7 +428,7 @@ export function LandingPage() {
           </nav>
           <div className="row">
             <a className="btn btn-primary" href={link} target="_blank" rel="noreferrer">Open the Telegram bot</a>
-            <button type="button" className="btn" onClick={openSignin}>Sign in</button>
+            <button type="button" className="btn" onClick={enter ? () => { setMenu(false); enter.onClick(); } : openSignin}>{enter ? enter.label : 'Sign in'}</button>
           </div>
         </Modal>
       )}

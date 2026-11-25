@@ -5,13 +5,15 @@ import io
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
 from .. import config, db, jobs, storage
 from ..auth import Session, require_role
-from ..media import blur
+from ..media import blur, cleanup_history
 
 router = APIRouter()
 RW = ("owner", "editor")
@@ -77,7 +79,7 @@ async def _allowed_media(s: Session, ids: list[str]) -> tuple[list, list[str]]:
     if not ids:
         return [], []
     rows = await db.fetch(
-        "SELECT m.id, m.storage_key, m.large_key, m.thumb_key, m.memory_id, mem.author_id FROM media m "
+        "SELECT m.id, m.storage_key, m.large_key, m.thumb_key, m.memory_id, m.blur_score, mem.author_id FROM media m "
         "JOIN memories mem ON mem.id=m.memory_id WHERE m.id = ANY($1::uuid[]) AND mem.family_id=$2::uuid "
         "AND m.type='photo'", ids, s.family_id)
     ok = [r for r in rows if s.role == "owner" or (r["author_id"] and str(r["author_id"]) == s.member_id)]
@@ -91,8 +93,14 @@ async def delete_blurry(body: Selection, s: Session = Depends(require_role(*RW))
     ok, denied = await _allowed_media(s, mids)
     memories_deleted: list[str] = []
     grows: list = []
+    # keep a small copy + room for GET /api/cleanup/history before the files go
+    hist = await cleanup_history.prepare_deleted_media(s.family_id, ok)
+    if gids and s.role == "owner":
+        hist += await cleanup_history.prepare_deleted_gallery(s.family_id, await db.fetch(
+            "SELECT * FROM gallery_items WHERE id = ANY($1::uuid[]) AND family_id=$2::uuid", gids, s.family_id))
     async with db.acquire() as conn:
         async with conn.transaction():
+            await cleanup_history.insert(conn, hist)
             if ok:
                 await conn.execute("DELETE FROM media WHERE id = ANY($1::uuid[])", [r["id"] for r in ok])
             for mem_id in {r["memory_id"] for r in ok}:
@@ -136,6 +144,16 @@ async def keep_blurry(body: Selection, s: Session = Depends(require_role(*RW))):
         kept_g = int(r.split()[-1])
     return {"kept_media": len(ok), "kept_gallery": kept_g,
             "not_allowed_or_missing": denied + ([] if s.role == "owner" else gids)}
+
+
+@router.get("/api/cleanup/history")
+async def history(year: Optional[int] = Query(None, ge=1900, le=2200), month: Optional[int] = Query(None, ge=1, le=12),
+                  s: Session = Depends(require_role(*RW))):
+    """Photos left out as blurry: auto_skipped (import), deleted (by a person), flagged (still in, marked blurry).
+    With year+month: that room only; without: the whole family. thumb_url works even after the files are gone."""
+    if (year is None) != (month is None):
+        raise HTTPException(400, "Give both year and month, or neither.")
+    return {"threshold": blur.threshold(), **await cleanup_history.history(s.family_id, year, month)}
 
 
 @router.post("/api/cleanup/rescan", status_code=202)

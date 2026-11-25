@@ -274,6 +274,37 @@ def age_audio(audio: bytes, fmt: str, level: str) -> bytes:
     return enc
 
 
+# ---------------------------------------------------------------- loudness (every character)
+# Sarvam clips came out around -23 LUFS after the aged chain (lowpass + high-shelf cut energy), noticeably quieter
+# than the other characters. Every synthesized clip is now normalised to the same target, two-pass EBU R128
+# (measure, then linear gain) so speech dynamics are kept. LOUDNORM_VERSION is part of the cache key.
+LOUDNORM = {"I": -16.0, "TP": -1.5, "LRA": 11.0}
+LOUDNORM_VERSION = 1
+
+
+def normalize_loudness(audio: bytes, fmt: str) -> bytes:
+    """Two-pass ffmpeg loudnorm to I=-16 LUFS, TP=-1.5 dBTP. Raises TTSError (callers keep the clip as is)."""
+    base = f"loudnorm=I={LOUDNORM['I']}:TP={LOUDNORM['TP']}:LRA={LOUDNORM['LRA']}"
+    m = subprocess.run(["ffmpeg", "-nostdin", "-hide_banner", "-i", "pipe:0", "-af", base + ":print_format=json",
+                        "-f", "null", "-"], input=audio, capture_output=True, timeout=60)
+    err = m.stderr.decode(errors="ignore")
+    j = err[err.rfind("{"):err.rfind("}") + 1] if "{" in err else ""
+    try:
+        meas = json.loads(j)
+        af = (f"{base}:measured_I={meas['input_i']}:measured_TP={meas['input_tp']}:measured_LRA={meas['input_lra']}"
+              f":measured_thresh={meas['input_thresh']}:offset={meas['target_offset']}:linear=true")
+        if float(meas["input_i"]) < -70:              # silence: nothing to normalise
+            return audio
+    except (ValueError, KeyError):
+        af = base                                      # very short clip: single-pass (dynamic) is fine
+    codec = ["-c:a", "libmp3lame", "-b:a", "128k", "-f", "mp3"] if fmt == "mp3" else ["-c:a", "pcm_s16le", "-f", "wav"]
+    enc = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-i", "pipe:0", "-af", af, "-ar", str(SAMPLE_RATE),
+                          "-ac", "1", *codec, "pipe:1"], input=audio, capture_output=True, timeout=90)
+    if enc.returncode != 0 or len(enc.stdout) < 1000:
+        raise TTSError("ffmpeg loudnorm: " + enc.stderr.decode(errors="ignore")[-300:])
+    return enc.stdout
+
+
 def _fx_override(by_lang: Any, language: str) -> Optional[str]:
     ov = by_lang.get(language) if isinstance(by_lang, dict) else None
     if isinstance(ov, dict):
@@ -358,7 +389,7 @@ async def synthesize(text: str, language: str, voice: str | None = None, fmt: st
         fx = "off"
     # Cache key uses the first choice so a later flag change re-synthesizes in the new voice.
     prosody = json.dumps(plan[0][2], sort_keys=True) if plan[0][2] else ""
-    h = hashlib.sha256(f"{text}|{language}|{plan[0][0]}:{plan[0][1]}{prosody}|{fmt}{'|agefx:' + fx + ':v' + str(AGE_FX_VERSION) if fx != 'off' else ''}".encode()).hexdigest()
+    h = hashlib.sha256(f"{text}|{language}|{plan[0][0]}:{plan[0][1]}{prosody}|{fmt}{'|agefx:' + fx + ':v' + str(AGE_FX_VERSION) if fx != 'off' else ''}|ln:v{LOUDNORM_VERSION}".encode()).hexdigest()
     row = await db.fetchrow("SELECT storage_key, duration_s, provider, voice FROM tts_cache WHERE hash=$1", h)
     if row and storage.exists(row["storage_key"]):
         return {"storage_key": row["storage_key"], "url": storage.signed_url(row["storage_key"]),
@@ -385,6 +416,10 @@ async def synthesize(text: str, language: str, voice: str | None = None, fmt: st
             audio = await asyncio.to_thread(age_audio, audio, fmt, fx)
         except Exception as e:  # noqa: BLE001 - keep the plain clip rather than fail the line
             log.warning("aged voice failed, using the plain clip: %s", str(e)[:200])
+    try:
+        audio = await asyncio.to_thread(normalize_loudness, audio, fmt)
+    except Exception as e:  # noqa: BLE001 - a quieter clip is better than no clip
+        log.warning("loudness normalisation failed, keeping the clip as is: %s", str(e)[:200])
     key = f"tts/{h[:2]}/{h}.{fmt}"
     storage.put(key, audio)
     dur = await asyncio.to_thread(_duration, str(storage.path(key)), len(audio))

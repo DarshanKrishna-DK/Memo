@@ -41,6 +41,13 @@ def exhibit(m: Any, media: list[dict]) -> dict:
             "width": p["width"], "height": p["height"], "is_blurry": p["is_blurry"],
             "taken_at": p["taken_at"].isoformat() if p["taken_at"] else None,
         } for p in photos],
+        # web copy (large_key) and poster (thumb_key) appear once the video_transcode job has run
+        "videos": [{
+            "type": "video", "id": str(v["id"]), "memory_id": str(m["id"]),
+            "url": storage.signed_url(v["large_key"]), "poster_url": storage.signed_url(v["thumb_key"]),
+            "duration_s": v["duration_s"], "width": v["width"], "height": v["height"],
+            "ready": bool(v["large_key"]),
+        } for v in media if v["type"] == "video"],
         "audio_url": storage.signed_url(voice["storage_key"]) if voice and voice["audio_kept"] else None,
         "transcript": voice["transcript"] if voice else None,
         "duration_s": voice["duration_s"] if voice else None,

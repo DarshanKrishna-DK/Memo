@@ -4,6 +4,7 @@ import { ATTIC, CORR_CEIL, CORR_HALF_W, DESK, DIRECTORY, LANDING, LATEST_PLAQUE,
 import { Box, CanvasPlane, Ceiling, Downlights, FloorPlane, Wall } from './parts';
 import { isTap, useRuntime } from './runtime';
 import { FONT_DISPLAY, FONT_SANS, PAL, canvasTex, monthName, pixelFrame, qrTexture, usePhoto, wrap, aspectOf } from './textures';
+import { floorLabel, yearOfLevel } from '../lib/floors';
 
 type Act = (i: Interactable) => void;
 
@@ -170,7 +171,7 @@ function Directory({ floors, act }: { floors: FloorSummary[]; act: Act }) {
               g.fillText(String(f.year), W * 0.07, y);
               g.font = `600 ${Math.round(rh * 0.4)}px ${FONT_SANS}`;
               g.fillStyle = '#a7b6d6';
-              g.fillText(f.level === 0 ? 'GROUND FLOOR' : `FLOOR ${f.level}`, W * 0.33, y - rh * 0.05);
+              g.fillText(floorLabel(f.level).toUpperCase() + (f.level === 0 ? ' FLOOR' : ''), W * 0.33, y - rh * 0.05);
               g.textAlign = 'right';
               g.fillStyle = f.open > 0 ? PAL.lime : '#a7b6d6';
               g.font = `${Math.round(rh * 0.8)}px ${FONT_DISPLAY}`;
@@ -403,10 +404,10 @@ export function Landing({ floor, level }: { floor: FloorSummary | null; level: n
           g.textAlign = 'center';
           g.fillStyle = PAL.goldSoft;
           g.font = `${Math.round(Hp * 0.42)}px ${FONT_DISPLAY}`;
-          g.fillText(floor ? String(floor.year) : '…', Wp / 2, Hp * 0.45);
+          g.fillText(String(floor?.year ?? yearOfLevel(level)), Wp / 2, Hp * 0.45);
           g.fillStyle = PAL.cream;
           g.font = `600 ${Math.round(Hp * 0.13)}px ${FONT_SANS}`;
-          g.fillText(`FLOOR ${level} · ${floor ? floor.open : 0} OF 12 ROOMS OPEN`, Wp / 2, Hp * 0.72);
+          g.fillText(`${floorLabel(level).toUpperCase()} · ${floor ? floor.open : 0} OF 12 ROOMS OPEN`, Wp / 2, Hp * 0.72);
         }}
       />
     </group>

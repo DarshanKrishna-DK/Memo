@@ -7,6 +7,7 @@ import { CORR_CEIL, CORR_HALF_W, DOORS, DOOR_W, END_Z, type DoorSpec } from './l
 import { Box, CanvasPlane, Ceiling, Downlights, FloorPlane, Wall } from './parts';
 import { isTap, useRuntime } from './runtime';
 import { Atlas, FONT_DISPLAY, FONT_SANS, PAL, monthName, useFontsReady, wrap } from './textures';
+import { floorLabel } from '../lib/floors';
 
 const STATE_COLOR: Record<RoomState | 'unknown', string> = {
   open: PAL.lime,
@@ -323,7 +324,7 @@ export function Corridor({
           g.fillText(openCount === null ? 'LOADING ROOMS…' : `${openCount} OF 12 ROOMS OPEN`, W / 2, H * 0.68);
           g.fillStyle = '#a7b6d6';
           g.font = `600 ${Math.round(H * 0.09)}px ${FONT_SANS}`;
-          g.fillText(level === 0 ? 'GROUND FLOOR' : `FLOOR ${level}`, W / 2, H * 0.84);
+          g.fillText(floorLabel(level).toUpperCase() + (level === 0 ? ' FLOOR' : ''), W / 2, H * 0.84);
         }}
       />
       <group position={[0, CORR_CEIL - 0.5, -0.6]}>

@@ -8,11 +8,13 @@
 export type Lang = 'en-IN' | 'hi-IN' | 'kn-IN';
 export type RoomState = 'open' | 'locked' | 'not_yet' | 'current_empty' | 'closed';
 
-export interface FloorSummary { year: number; open: number; total: 12; level: number /* 0 = ground */ }
+/** Fixed calendar for every family: level = year - 2002 (0 = ground, beside the lobby; < 0 = basement);
+ *  floor_number (what people see) = year - 2001, so 2026 = Floor 25. See lib/floors.ts. */
+export interface FloorSummary { year: number; open: number; total: 12; level: number; floor_number?: number }
 export interface MuseumSummary {
   family: { id: string; name: string; language: Lang; grandma_name: string };
   me: { member_id: string | null; nickname: string | null; role: 'owner' | 'editor' | 'viewer'; is_guest: boolean; invite_room?: { year: number; month: number } | null };
-  floors: FloorSummary[];             // newest first; always includes the current year
+  floors: FloorSummary[];             // newest first: ground (2002), the current year, years holding something
   attic_count: number;
   latest: { id: string; title: string; year: number; month: number; thumb_url: string | null } | null;
   flags: Record<string, unknown>;     // museum_3d, voice_enabled, barge_in, cinematic_walk, sarcasm_enabled, ...
@@ -32,8 +34,10 @@ export interface Exhibit {
   audio_url: string | null; transcript: string | null; duration_s: number | null;
 }
 export interface ShowcaseItem {
-  memory_id: string; kind: 'photo' | 'title' | 'voice'; url: string | null; thumb_url: string | null;
+  memory_id: string; kind: 'photo' | 'title' | 'voice' | 'video'; url: string | null; thumb_url: string | null;
   caption: string; transcript: string | null; audio_url: string | null; duration_s: number;
+  /** Video items: still shown before the video starts. The server may also send `type` instead of `kind`. */
+  poster_url?: string | null;
 }
 export interface Highlight { memory_id: string; at_s: number }
 export interface Subtitle { text: string; start_s: number; end_s: number }
@@ -41,7 +45,7 @@ export interface Speech { text: string; audio_url: string | null; subtitles: Sub
 
 export interface RouteWaypoint { kind: 'desk' | 'lift' | 'ride' | 'corridor' | 'door' | 'seat'; level: number; door_index?: number }
 export interface MuseumRoute {
-  year: number; month: number; event_id: string | null; level: number; needs_lift: boolean;
+  year: number; month: number; event_id: string | null; level: number; floor_number?: number; needs_lift: boolean;
   room_state: RoomState; board_text: string | null; waypoints: RouteWaypoint[]; walk_seconds: number;
 }
 

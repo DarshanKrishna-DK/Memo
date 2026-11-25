@@ -522,14 +522,18 @@ async def talk(family_id, question: str, scope: dict, language=None, *, state_ke
     if not q:
         raise HTTPException(422, "I didn't catch a question.")
     action = None
-    switched = L.language_switch(q)
+    switched, rest = L.language_switch_rest(q)
     if switched:
         lang = switched
         st["language"] = lang
+        st.pop("register", None)
         await vstate.set_member_language(member_id, lang)
-        res = {"sentences": [{"text": L.t("rx_setting", lang, what=L.t("rx_lang_set", lang)), "memory_ids": []}],
-               "source": "none", "action": {"type": "setting_changed", "data": {"key": "language", "value": lang,
-                                                                                  "scope": "session"}}}
+        ack = [{"text": L.t("rx_setting", lang, what=L.t("rx_lang_set", lang)), "memory_ids": []}]
+        res = {"sentences": ack, "source": "none",
+               "action": {"type": "setting_changed", "data": {"key": "language", "value": lang, "scope": "session"}}}
+        if rest:   # "talk in Hindi, when was this?" -> switch, then answer the question in the new language
+            ans = await answer(family_id, rest, scope, lang, st)
+            res = {**ans, "sentences": ack + ans["sentences"], "action": res["action"]}
     elif INVITE_STRICT_RE.search(q) or (st.get("pending") or {}).get("kind") in (
             "choose_contact", "confirm_invite", "need_invite_room"):
         # Inviting from the theater uses the receptionist's invite flow (find contact, confirm aloud, then call).

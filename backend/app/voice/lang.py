@@ -440,6 +440,23 @@ T: dict[str, dict[str, str]] = {
         "hi-IN": "माफ़ कीजिए, यह नहीं हो पाया: {reason}",
         "kn-IN": "ಕ್ಷಮಿಸಿ, ಅದು ಆಗಲಿಲ್ಲ: {reason}",
     },
+    # list events: {count} = number, {list} = "Tech talks, May 2026; Diwali, November 2025", {more} = rx_events_more or ""
+    "rx_events": {
+        "en-IN": "You have {count} {events}: {list}{more}. Which one shall we visit?",
+        "hi-IN": "आपके {count} इवेंट हैं: {list}{more}। किसमें चलें?",
+        "kn-IN": "ನಿಮ್ಮ ಬಳಿ {count} ಈವೆಂಟ್‌ಗಳಿವೆ: {list}{more}. ಯಾವುದಕ್ಕೆ ಹೋಗೋಣ?",
+    },
+    "rx_events_more": {"en-IN": ", and {n} more", "hi-IN": ", और {n} और", "kn-IN": ", ಮತ್ತು ಇನ್ನೂ {n}"},
+    "rx_events_rooms": {
+        "en-IN": " Rooms with memories but no event: {list}.",
+        "hi-IN": " बिना इवेंट वाले, यादों से भरे कमरे: {list}।",
+        "kn-IN": " ಈವೆಂಟ್ ಇಲ್ಲದ, ನೆನಪುಗಳಿರುವ ಕೊಠಡಿಗಳು: {list}.",
+    },
+    "rx_events_none": {
+        "en-IN": "There are no events yet.{rooms} Want to add one?",
+        "hi-IN": "अभी कोई इवेंट नहीं है।{rooms} एक जोड़ें?",
+        "kn-IN": "ಇನ್ನೂ ಯಾವ ಈವೆಂಟ್ ಇಲ್ಲ.{rooms} ಒಂದನ್ನು ಸೇರಿಸೋಣವೇ?",
+    },
     "rx_need_role": {
         "en-IN": "Only the family's owner or an editor can do that.",
         "hi-IN": "यह सिर्फ़ परिवार के मालिक या एडिटर कर सकते हैं।",
@@ -529,6 +546,13 @@ MIXED: dict[str, dict[str, str]] = {
                          "kanglish": "{name} ge eega call maadtidini. Avru enu heltaare anta thorstini."},
     "rx_invite_where": {"hinglish": "Unhe kaunse room mein bulaoon?", "kanglish": "Avranna yaava room ge karili?"},
     "rx_lang_set": {"hinglish": "Ab se main Hindi mein baat karungi", "kanglish": "Inmunde naanu Kannada dalli maatadtini"},
+    "rx_events": {"hinglish": "Aapke {count} events hain: {list}{more}. Kaunse mein chalein?",
+                  "kanglish": "Nimma hatra {count} events ive: {list}{more}. Yaavdakke hogona?"},
+    "rx_events_more": {"hinglish": ", aur {n} aur", "kanglish": ", innu {n}"},
+    "rx_events_rooms": {"hinglish": " Bina event wale yaadon ke rooms: {list}.",
+                        "kanglish": " Event illada nenapugala rooms: {list}."},
+    "rx_events_none": {"hinglish": "Abhi koi event nahi hai.{rooms} Ek bana dein?",
+                       "kanglish": "Innu yaava event illa.{rooms} Ondu add maadona?"},
 }
 for _k, _row in MIXED.items():
     T.setdefault(_k, {}).update(_row)
@@ -566,6 +590,23 @@ def language_switch(text: str) -> Optional[str]:
         if rx.search(text or ""):
             return code
     return None
+
+
+def language_switch_rest(text: str) -> tuple[Optional[str], str]:
+    """(language, what is left once the switch request is removed), so "talk in Hindi, when was this?" can switch
+    AND answer. The rest is "" when the message was only the switch (or the leftover is not a question)."""
+    for code, rx in _SWITCH:
+        if rx.search(text or ""):
+            rest = rx.sub(" ", text or "")
+            rest = re.sub(r"^\W*(?:(?:and|aur|mattu|now|ab|please|pls|ok|okay|ajji|dadi|grandma|amma|nani)\b\W*)*",
+                          "", rest, flags=re.I)
+            rest = re.sub(r"^\w{1,2}\b\W*", "", rest.strip())   # tail of a cut word ("bol-o, ...")
+            rest = " ".join(rest.split()).strip(" ,.;:!-")
+            asks = re.search(r"\?|\b(?:who|what|when|where|which|why|how|tell|show|explain|kab|kaun|kya|kahan|kaise|"
+                             r"kyun|batao|bataiye|dikhao|yaaru|yavaga|yelli|enu|yake|heli|helu|thorisu)\b|"
+                             r"कब|कौन|क्या|कहाँ|कैसे|बताओ|ಯಾರು|ಯಾವಾಗ|ಎಲ್ಲಿ|ಏನು|ಹೇಳಿ", rest, re.I)
+            return code, (rest if asks else "")
+    return None, ""
 
 
 def language_rule(lang: str) -> str:

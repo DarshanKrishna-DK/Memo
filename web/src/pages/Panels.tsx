@@ -5,6 +5,7 @@ import type { Exhibit, Lang } from '../contract';
 import { useWorld } from '../state/worldStore';
 import { ConfirmModal, Field, Modal, LANGS, MONTHS, Spinner, monthName, useAction, useLoad } from '../ui/common';
 import { RoomTab } from './Reception';
+import { GROUND_YEAR, floorLabel, levelOfYear } from '../lib/floors';
 
 export function LiftPanel() {
   const museum = useWorld((s) => s.museum);
@@ -13,11 +14,11 @@ export function LiftPanel() {
   const level = useWorld((s) => s.currentLevel);
   return (
     <Modal title="Lift" size="sm" onClose={() => close(null)}>
-      <p className="muted">Floor 0 is the oldest year with memories, beside the lobby. Each later year is one floor up.</p>
+      <p className="muted">The ground floor is {GROUND_YEAR}, beside the lobby. Each later year is one floor up, so {new Date().getFullYear()} is {floorLabel(levelOfYear(new Date().getFullYear()))}. Years with nothing in them yet are skipped.</p>
       <div className="lift-btns">
         {(museum?.floors ?? []).map((f) => (
-          <button key={f.year} className={'btn' + (f.level === level ? ' btn-brass' : '')} onClick={() => void ride(f.level)} aria-label={`Floor ${f.level}, ${f.year}, ${f.open} of 12 rooms open`}>
-            <span>Floor {f.level}</span><span>{f.year}</span><span className="chip">{f.open} of 12 open</span>
+          <button key={f.year} className={'btn' + (f.level === level ? ' btn-brass' : '') + (f.open === 0 ? ' is-empty' : '')} style={f.open === 0 ? { opacity: 0.6 } : undefined} onClick={() => void ride(f.level)} aria-label={`${floorLabel(f.level)}, ${f.year}, ${f.open === 0 ? 'nothing here yet' : `${f.open} of 12 rooms open`}`}>
+            <span>{floorLabel(f.level)}</span><span>{f.year}</span><span className="chip">{f.open === 0 ? 'nothing here yet' : `${f.open} of 12 open`}</span>
           </button>
         ))}
       </div>

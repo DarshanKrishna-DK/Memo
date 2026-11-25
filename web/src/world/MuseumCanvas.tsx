@@ -23,6 +23,7 @@ import { MonthRoom } from './Room';
 import { RuntimeContext, makeWorldRuntime, useRuntime, type WorldRuntime } from './runtime';
 import { flushPhotos } from './textures';
 import { WalkDirector } from './WalkDirector';
+import { levelOfYear as fixedLevelOfYear, yearOfLevel } from '../lib/floors';
 
 preloadCharacters();
 
@@ -114,15 +115,18 @@ function FadeOverlay({ rt }: { rt: WorldRuntime }) {
   return <div ref={el} aria-hidden="true" style={{ position: 'absolute', inset: 0, background: '#050b1a', opacity: 0, pointerEvents: 'none' }} />;
 }
 
+/** Shown for the first load only (models, environment). Later loads (photos, a lazily fetched asset) never blank
+ *  the museum again: the scene stays visible and they pop in when ready. */
+let firstLoadDone = false;
 function LoadingOverlay() {
   const { active, progress } = useProgress();
-  const [shown, setShown] = useState(true);
+  const [shown, setShown] = useState(!firstLoadDone);
   useEffect(() => {
+    if (firstLoadDone) return;
     if (!active && progress >= 100) {
-      const t = setTimeout(() => setShown(false), 250);
+      const t = setTimeout(() => { firstLoadDone = true; setShown(false); }, 250);
       return () => clearTimeout(t);
     }
-    setShown(true);
   }, [active, progress]);
   if (!shown) return null;
   return (
@@ -187,15 +191,18 @@ function WorldScene({ avatarProp }: { avatarProp?: 'man' | 'woman' }) {
   const walking = mode === 'walking' && !!activeRoute;
   const riding = mode === 'riding';
 
+  // Fixed calendar (lib/floors): level 0 = 2002 (ground, beside the lobby), level 24 = 2026 (Floor 25). Only the
+  // floor on display is built, so a 25-floor building costs the same as a one-floor one.
   const floor = floors.find((f) => f.level === displayLevel) ?? null;
-  const year = floor?.year ?? new Date().getFullYear();
+  const year = floor?.year ?? yearOfLevel(displayLevel);
   const rooms: Room[] | undefined = floorRooms[year];
-  const levelOfYear = useCallback((y: number) => floors.find((f) => f.year === y)?.level ?? null, [floors]);
+  // The server's floor list is the truth (it is what routes use); the fixed calendar fills years it does not list.
+  const levelOfYear = useCallback((y: number) => floors.find((f) => f.year === y)?.level ?? fixedLevelOfYear(y), [floors]);
 
-  // Lazy floor loading: only the floor on display.
+  // Lazy floor loading: only the floor on display (listed or not: a route can go to an empty year).
   useEffect(() => {
-    if (floor && !floorRooms[floor.year]) void loadFloor(floor.year).catch(() => undefined);
-  }, [floor, floorRooms, loadFloor]);
+    if (!floorRooms[year]) void loadFloor(year).catch(() => undefined);
+  }, [year, floorRooms, loadFloor]);
 
   // Free photo textures of the floor we left.
   const prevLevel = useRef(displayLevel);

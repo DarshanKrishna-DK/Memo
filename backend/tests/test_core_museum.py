@@ -30,13 +30,43 @@ async def fam():
 
 
 async def test_floor_levels(fam):
-    assert museum.floor_level(2023, 2023) == 0
-    assert museum.floor_level(2023, 2026) == 3
+    # one fixed calendar for every family: 2002 = ground (level 0, floor 1), 2026 = level 24 = floor 25
+    assert museum.floor_level(2002) == 0 and museum.floor_number(2002) == 1
+    assert museum.floor_level(2026) == 24 and museum.floor_number(2026) == 25
+    assert museum.floor_level(2001) == -1 and museum.floor_name(2001) == "basement 1"
+    assert museum.floor_name(2002) == "the ground floor" and museum.floor_name(2026) == "floor 25"
     fl = await museum.floors(fam["id"])
     y = fam["today"].year
-    assert [x["year"] for x in fl] == [y, y - 1, y - 2, y - 3]          # newest first, includes current year
-    assert [x["level"] for x in fl] == [3, 2, 1, 0]
-    assert fl[1]["open"] == 2 and fl[2]["open"] == 0 and fl[3]["open"] == 1
+    # newest first: current year, years holding memories, and the ground; the empty year y-2 is skipped
+    assert [x["year"] for x in fl] == [y, y - 1, y - 3, 2002]
+    assert [x["level"] for x in fl] == [y - 2002, y - 1 - 2002, y - 3 - 2002, 0]
+    assert [x["floor_number"] for x in fl] == [y - 2001, y - 2002, y - 2004, 1]
+    assert fl[1]["open"] == 2 and fl[2]["open"] == 1 and fl[3]["open"] == 0
+    data = await museum.year_rooms(fam["id"], 2026)
+    assert data["level"] == 24 and data["floor_number"] == 25
+
+
+async def test_floors_are_the_same_for_every_family(fam):
+    other = await make_family("pytest-core-api-other")
+    try:
+        await add_memory(other["id"], 2026, 11, author=other["owner"], title="Lamps", festival="Diwali")
+        a = {f["year"]: f["level"] for f in await museum.floors(fam["id"])}
+        b = {f["year"]: f["level"] for f in await museum.floors(other["id"])}
+        assert all(a[y] == b[y] for y in a.keys() & b.keys()) and b[2026] == 24 and b[2002] == 0
+        r = await routing.plan_route(other["id"], 2026, 11)
+        assert r["level"] == 24 and r["floor_number"] == 25 and r["needs_lift"] and r["room_state"] == "open"
+        # pre-2002 years are basements; empty in-range years still route (doors shut); past next year is refused
+        b1 = await routing.plan_route(other["id"], 1999, 6)
+        assert b1["level"] == -3 and b1["needs_lift"] and b1["room_state"] == "locked"
+        assert (await routing.plan_route(other["id"], 2010, 2))["level"] == 8
+        top = fam["today"].year + 1
+        assert (await routing.plan_route(other["id"], top, 1))["room_state"] == "not_yet"
+        with pytest.raises(LookupError):
+            await routing.plan_route(other["id"], top + 1, 1)
+        with pytest.raises(ValueError):
+            await events.create_event(other["id"], other["owner"], "Far trip", "", top + 1, 1)
+    finally:
+        await drop_family(other["id"])
 
 
 async def test_room_states(fam):
@@ -92,15 +122,15 @@ async def test_sarcasm_switch_and_closed_with_care(fam):
 
 async def test_routes_by_level(fam):
     y = fam["today"].year
-    ground = await routing.plan_route(fam["id"], y - 3, 1)
-    assert ground["level"] == 0 and ground["needs_lift"] is False
-    assert [w["kind"] for w in ground["waypoints"]] == ["desk", "corridor", "door", "seat"]
+    ground = await routing.plan_route(fam["id"], 2002, 1)                # 2002 = the ground floor, beside the lobby
+    assert ground["level"] == 0 and ground["floor_number"] == 1 and ground["needs_lift"] is False
+    assert [w["kind"] for w in ground["waypoints"]] == ["desk", "corridor", "door"]   # locked: nobody sits
     assert ground["waypoints"][2]["door_index"] == 0
     assert ground["walk_seconds"] == 5
     up = await routing.plan_route(fam["id"], y - 1, 3)
-    assert up["level"] == 2 and up["needs_lift"] is True
+    assert up["level"] == y - 1 - 2002 and up["needs_lift"] is True
     assert [w["kind"] for w in up["waypoints"]] == ["desk", "lift", "ride", "corridor", "door", "seat"]
-    assert up["waypoints"][2]["level"] == 2 and up["waypoints"][4]["door_index"] == 2
+    assert up["waypoints"][2]["level"] == y - 1 - 2002 and up["waypoints"][4]["door_index"] == 2
     assert 5 <= up["walk_seconds"] <= 10
     locked = await routing.plan_route(fam["id"], y - 1, 5)
     assert locked["room_state"] == "locked" and locked["waypoints"][-1]["kind"] == "door"   # nobody sits
@@ -113,14 +143,14 @@ async def test_routes_by_level(fam):
     await db.execute("DELETE FROM flag_overrides WHERE family_id=$1::uuid", fam["id"])
     flags._cache.clear()
     with pytest.raises(LookupError):
-        await routing.plan_route(fam["id"], y - 10, 1)
+        await routing.plan_route(fam["id"], y + 2, 1)                    # floors stop at next year
 
 
 async def test_events_and_place_resolution(fam):
     y = fam["today"].year
     out = await events.create_event(fam["id"], fam["owner"], "Diwali", "", y, 11)
     assert out["event"]["kind"] == "festival"
-    assert out["level"] == 3 and out["room"] == {"year": y, "month": 11}
+    assert out["level"] == y - 2002 and out["floor_number"] == y - 2001 and out["room"] == {"year": y, "month": 11}
     again = await events.create_event(fam["id"], fam["owner"], "diwali", "festival", y, 11)
     assert again["event"]["id"] == out["event"]["id"] and again["created"] is False
     eid = out["event"]["id"]

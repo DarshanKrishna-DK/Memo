@@ -6,6 +6,7 @@ import { LIFT } from './layout';
 import { Box } from './parts';
 import { useRuntime, isTap } from './runtime';
 import { FONT_DISPLAY, PAL, canvasTex } from './textures';
+import { floorShort, yearOfLevel } from '../lib/floors';
 
 /** Lift on the back wall, right of the corridor: cabin, sliding doors, a floor indicator that
  *  counts during a ride, and a call panel (E / tap → lift_panel). Same spot on every floor. */
@@ -13,11 +14,7 @@ export function Lift({ floors, onInteract }: { floors: FloorSummary[]; onInterac
   const rt = useRuntime();
   const left = useRef<THREE.Mesh>(null);
   const right = useRef<THREE.Mesh>(null);
-  const yearOf = useMemo(() => {
-    const m = new Map<number, number>();
-    floors.forEach((f) => m.set(f.level, f.year));
-    return m;
-  }, [floors]);
+  void floors; // the calendar is fixed (lib/floors): any level maps to its year, listed or not
 
   const ind = useMemo(() => {
     const c = document.createElement('canvas');
@@ -37,8 +34,7 @@ export function Lift({ floors, onInteract }: { floors: FloorSummary[]; onInterac
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.font = `64px ${FONT_DISPLAY}`;
-    const year = yearOf.get(level);
-    g.fillText(level === 0 ? `G${year ? ' ' + year : ''}` : `${level}${year ? ' · ' + year : ''}`, 128, 52, 236);
+    g.fillText(`${floorShort(level)} · ${yearOfLevel(level)}`, 128, 52, 236);
     if (dir !== 0) {
       g.fillStyle = PAL.lime;
       g.beginPath();

@@ -2,9 +2,16 @@ import { create } from 'zustand';
 import type { Exhibit, Interactable, Lang, MuseumRoute, MuseumSummary, Room, ShowcaseItem, WorldActions, WorldMode } from '../contract';
 import { ApiError, get, listOf, post } from '../api/client';
 import { playGuideLine } from '../voice/guideVoice';
+import { yearOfLevel } from '../lib/floors';
 
 export type Phase = 'boot' | 'signin' | 'landing' | 'world';
 export type Avatar = 'man' | 'woman';
+/** Showcase items may arrive as {type:'video', url, poster_url, ...}: fold `type` into `kind` and fill the gaps. */
+function normalizeItem(it: ShowcaseItem & { type?: ShowcaseItem['kind'] }): ShowcaseItem {
+  const kind = it.kind ?? it.type ?? 'photo';
+  return { ...it, kind, url: it.url ?? null, thumb_url: it.thumb_url ?? it.poster_url ?? null, caption: it.caption ?? '', transcript: it.transcript ?? null, audio_url: it.audio_url ?? null, duration_s: it.duration_s ?? 0, poster_url: it.poster_url ?? (kind === 'video' ? it.thumb_url ?? null : null) };
+}
+
 export type Panel = null | 'reception' | 'lift' | 'directory' | 'attic' | 'settings' | 'cleanup' | 'reels' | 'ops' | 'members' | 'exhibit' | 'help';
 export type AgentState = 'idle' | 'listening' | 'thinking' | 'speaking';
 export interface Caption { id: number; who: 'you' | 'receptionist' | 'grandma' | 'system'; text: string; final: boolean }
@@ -74,7 +81,8 @@ export interface WorldState extends WorldActions {
   enter(): void;
   loadFloor(year: number, force?: boolean): Promise<Room[]>;
   loadRoom(year: number, month: number, eventId?: string | null): Promise<void>;
-  loadShowcase(): Promise<void>;
+  /** keep: a refresh (new memory arrived, an edit): stay on the same item and keep playing instead of starting over. */
+  loadShowcase(opts?: { keep?: boolean }): Promise<void>;
   goTo(year: number, month: number, eventId?: string | null): Promise<void>;
   openPanel(p: Panel): void;
   openExhibit(id: string): void;
@@ -149,12 +157,20 @@ export const useWorld = create<WorldState>((set, getS) => ({
     const data = await get<unknown>(`/api/museum/${year}/${month}${q}`);
     set({ roomExhibits: listOf<Exhibit>(data, 'exhibits') });
   },
-  async loadShowcase() {
+  async loadShowcase(opts) {
     const r = getS().room;
     if (!r) return;
     const q = r.eventId ? `?event_id=${encodeURIComponent(r.eventId)}` : '';
     const data = await get<unknown>(`/api/showcase/${r.year}/${r.month}${q}`);
-    set({ showcaseItems: listOf<ShowcaseItem>(data, 'items'), showcaseIndex: 0, showcasePlaying: false });
+    const items = listOf<ShowcaseItem & { type?: ShowcaseItem['kind'] }>(data, 'items').map(normalizeItem);
+    const cur = getS();
+    if (opts?.keep && cur.room === r && cur.showcaseItems.length) {
+      const was = cur.showcaseItems[cur.showcaseIndex];
+      const at = was ? items.findIndex((i) => i.memory_id === was.memory_id && i.kind === was.kind && (i.url ?? '').split('?')[0] === (was.url ?? '').split('?')[0]) : -1;
+      set({ showcaseItems: items, showcaseIndex: at >= 0 ? at : Math.min(cur.showcaseIndex, Math.max(0, items.length - 1)) });
+      return;
+    }
+    set({ showcaseItems: items, showcaseIndex: 0, showcasePlaying: false });
   },
 
   async goTo(year, month, eventId = null) {
@@ -194,9 +210,9 @@ export const useWorld = create<WorldState>((set, getS) => ({
   },
   async rideLift(level) {
     const s = getS();
-    const floor = s.museum?.floors.find((f) => f.level === level);
     set({ mode: 'riding', currentLevel: level, panel: null });
-    if (floor) await s.loadFloor(floor.year).catch(() => undefined);
+    const year = s.museum?.floors.find((f) => f.level === level)?.year ?? yearOfLevel(level);   // fixed calendar fallback
+    await s.loadFloor(year).catch(() => undefined);
     const quick = s.reducedMotion || !s.webgl || s.mode2d === true;
     await new Promise((r) => setTimeout(r, quick ? 150 : 2600));
     set({ mode: 'floor' });

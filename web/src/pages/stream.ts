@@ -33,12 +33,12 @@ export function useLiveStream() {
           w.addCard({ kind: 'info', title: 'Photos are on the wall', text: `${String(ev.count ?? '')} photos in ${String(ev.event_name ?? 'your event')}.` });
           void w.refreshMuseum();
           if (typeof ev.year === 'number') void w.loadFloor(ev.year, true).catch(() => undefined);
-          if (w.room && w.room.year === ev.year && w.room.month === ev.month) void w.loadRoom(w.room.year, w.room.month, w.room.eventId).then(() => w.loadShowcase()).catch(() => undefined);
+          if (w.room && w.room.year === ev.year && w.room.month === ev.month) void w.loadRoom(w.room.year, w.room.month, w.room.eventId).then(() => w.loadShowcase({ keep: true })).catch(() => undefined);
           break;
         case 'memory_saved':
           void w.refreshMuseum();
           if (typeof ev.year === 'number') void w.loadFloor(ev.year, true).catch(() => undefined);
-          if (w.room && w.room.year === ev.year && w.room.month === ev.month) void w.loadRoom(w.room.year, w.room.month, w.room.eventId).then(() => w.loadShowcase()).catch(() => undefined);
+          if (w.room && w.room.year === ev.year && w.room.month === ev.month) void w.loadRoom(w.room.year, w.room.month, w.room.eventId).then(() => w.loadShowcase({ keep: true })).catch(() => undefined);
           break;
         case 'reel_ready':
           w.bumpInvites();

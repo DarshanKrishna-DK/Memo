@@ -31,7 +31,8 @@ async def _download_all(mem, media) -> int:
             if e.code == 400 or "too large" in str(e):          # over the Bot API 20 MB limit: tell the sender
                 await db.execute("DELETE FROM media WHERE id=$1", m["id"])
                 if mem["tg_chat_id"]:
-                    await send.send_message(mem["tg_chat_id"], t(mem["flang"], "too_big"))
+                    await send.send_message(mem["tg_chat_id"],
+                                            t(mem["flang"], "video_too_big" if m["type"] == "video" else "too_big"))
                 continue
             raise
         if m["type"] == "voice":
@@ -65,6 +66,22 @@ async def _download_all(mem, media) -> int:
                 "UPDATE media SET storage_key=$2, large_key=$3, thumb_key=$4, width=$5, height=$6, taken_at=$7, "
                 "blur_score=$8, is_blurry=$9, content_hash=$10, mime='image/jpeg' WHERE id=$1",
                 m["id"], fk, lk, tk, r["width"], r["height"], r["taken_at"], r["blur_score"], is_blur, r["content_hash"])
+        elif m["type"] == "video":
+            # keep the original as sent; the web copy + poster are made by the video_transcode job
+            import hashlib
+            from app.media import video
+            key = storage.put(storage.new_key(fam, "videos", video.ext_for(m["mime"])), data)
+            try:
+                info = await asyncio.to_thread(video.probe, storage.path(key))
+            except video.VideoError as e:
+                log.warning("video %s unreadable: %s", m["id"], e)
+                info = {"duration_s": m["duration_s"], "width": m["width"], "height": m["height"], "creation_time": None}
+            await db.execute(
+                "UPDATE media SET storage_key=$2, duration_s=coalesce($3,duration_s), width=coalesce(width,$4), "
+                "height=coalesce(height,$5), taken_at=$6, content_hash=$7 WHERE id=$1", m["id"], key,
+                info["duration_s"], info["width"], info["height"], info["creation_time"],
+                hashlib.sha256(data).hexdigest())
+            await jobs.enqueue("video_transcode", {"media_id": str(m["id"])}, max_attempts=3)
     return blurry
 
 
@@ -121,13 +138,17 @@ async def capture(payload: dict) -> dict:
             tags["title"] = " ".join(text.split()[:6])
             tags["summary"] = text[:300]
     if not date["placed"]:                       # real EXIF capture time is metadata, not a guess
-        taken = next((m["taken_at"] for m in media if m["type"] == "photo" and m["taken_at"]), None)
+        taken = next((m["taken_at"] for m in media if m["type"] in ("photo", "video") and m["taken_at"]), None)
         if taken and taken <= datetime.now(timezone.utc):
             date = {"year": taken.year, "month": taken.month, "day": taken.day, "placed": True}
             tags["date_confidence"] = max(tags["date_confidence"], 0.6)
     if not tags["title"] and not text:
         n = sum(1 for m in media if m["type"] == "photo")
-        tags["title"] = "Photo" if n == 1 else f"{n} photos" if n else "Voice note"
+        nv = sum(1 for m in media if m["type"] == "video")
+        if nv and not n:
+            tags["title"] = "Video" if nv == 1 else f"{nv} videos"
+        else:
+            tags["title"] = "Photo" if n == 1 else f"{n} photos" if n else "Voice note"
     if not tags["title"]:
         tags["title"] = "Voice note" if any(m["type"] == "voice" for m in media) else "Memory"
 
@@ -150,10 +171,16 @@ async def capture(payload: dict) -> dict:
         voice_note = "\n" + t(lang, "voice_auto", choice=t(lang, mem["vdefault"]).lower())
         has_voice = False
     blurry_total = await db.fetchval("SELECT count(*) FROM media WHERE memory_id=$1 AND is_blurry", mid)
+    videos = [m for m in media if m["type"] == "video" and m["storage_key"]]
+    video_note = ""
+    if videos:
+        video_note = "\n" + t(lang, "video_saved")
+        if any((m["duration_s"] or 0) > 121 for m in videos):
+            video_note += " " + t(lang, "video_trimmed")
 
     if chat:
         if date["placed"]:
-            text_out = memops.receipt_text(mem, lang) + voice_note
+            text_out = memops.receipt_text(mem, lang) + voice_note + video_note
             rows = memops.receipt_buttons(mid, lang)
             if blurry_total:
                 text_out += "\n" + t(lang, "blurry" if blurry_total == 1 else "blurry_n", n=blurry_total)
@@ -166,7 +193,8 @@ async def capture(payload: dict) -> dict:
             from .followups import schedule_followup
             await schedule_followup(mid)
         else:
-            await send.send_message(chat, f"{tags['title']}\n\n{t(lang, 'ask_year')}", memops.year_buttons(mid, lang))
+            await send.send_message(chat, f"{tags['title']}{video_note}\n\n{t(lang, 'ask_year')}",
+                                    memops.year_buttons(mid, lang))
             if has_voice:
                 await send.send_message(chat, t(lang, "voice_q"), memops.voice_buttons(mid, lang))
             if blurry_total:

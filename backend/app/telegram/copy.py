@@ -41,7 +41,11 @@ EN = {
     "help": "I keep your family memories.\nSend text, a voice note, photos or forward a message.\n/museum sign-in link\n/invite invite link\n/members who is here\n/nickname <name>\n/quiet toggle follow-up questions\n/export download everything (owner)\n/help this message",
     "rate": "Slow down a little please, dear. Try again in a minute.",
     "too_big": "That file is too big for me (the limit is 20 MB). Please send a smaller one.",
-    "unsupported": "I can't keep videos or other files yet. Please send text, a voice note or photos.",
+    "unsupported": "I can't keep audio files or documents yet. Please send text, a voice note, photos or a video.",
+    "ack_video": "Got your video, dear. I'm keeping it safe and getting it ready to play in the museum.",
+    "video_too_big": "That video is over 20 MB, and Telegram only lets me fetch files up to 20 MB. Could you send a shorter clip, or send it as a normal video (not as a file) so Telegram makes it smaller?",
+    "video_saved": "The video will be ready to play in the museum in a minute or two.",
+    "video_trimmed": "It is long, so the museum plays the first 2 minutes; the full video is kept safe.",
     "failed": "I couldn't process that one. I've kept the original, please try again later.",
     "followup_thanks": "Thank you, I've added that to the memory.",
     "contact_owner": "Only the family owner can add contacts.",
@@ -72,6 +76,11 @@ HI = {
     "quiet_on": "ठीक है, अब मैं सवाल नहीं पूछूँगी। फिर से चालू करने के लिए /quiet भेजें।",
     "quiet_off": "सवाल फिर से चालू हैं।",
     "followup_thanks": "शुक्रिया, मैंने इसे याद में जोड़ दिया है।",
+    "unsupported": "ऑडियो फ़ाइलें या दस्तावेज़ मैं अभी नहीं रख सकती। संदेश, वॉइस नोट, फ़ोटो या वीडियो भेजिए।",
+    "ack_video": "तुम्हारा वीडियो मिल गया बेटा। इसे संभाल कर रख रही हूँ और संग्रहालय में चलाने के लिए तैयार कर रही हूँ।",
+    "video_too_big": "यह वीडियो 20 MB से बड़ा है, और Telegram मुझे 20 MB तक की ही फ़ाइल लेने देता है। छोटा क्लिप भेजो, या इसे फ़ाइल की जगह सामान्य वीडियो की तरह भेजो ताकि Telegram इसे छोटा कर दे।",
+    "video_saved": "वीडियो एक-दो मिनट में संग्रहालय में चलने के लिए तैयार हो जाएगा।",
+    "video_trimmed": "यह लंबा है, इसलिए संग्रहालय में पहले 2 मिनट चलेंगे; पूरा वीडियो सुरक्षित रखा है।",
 }
 KN = {
     "ack": "ಸರಿ ಮಗು, ಇದನ್ನು ಜೋಪಾನವಾಗಿ ಇಟ್ಟಿದ್ದೇನೆ.",
@@ -93,6 +102,11 @@ KN = {
     "quiet_on": "ಸರಿ, ಇನ್ನು ಪ್ರಶ್ನೆ ಕೇಳುವುದಿಲ್ಲ. ಮತ್ತೆ ಆನ್ ಮಾಡಲು /quiet ಕಳುಹಿಸಿ.",
     "quiet_off": "ಪ್ರಶ್ನೆಗಳು ಮತ್ತೆ ಆನ್ ಆಗಿವೆ.",
     "followup_thanks": "ಧನ್ಯವಾದ, ನೆನಪಿಗೆ ಸೇರಿಸಿದ್ದೇನೆ.",
+    "unsupported": "ಆಡಿಯೋ ಫೈಲ್‌ಗಳು ಅಥವಾ ದಾಖಲೆಗಳನ್ನು ನಾನು ಇನ್ನೂ ಇಡಲಾರೆ. ಸಂದೇಶ, ಧ್ವನಿ ಟಿಪ್ಪಣಿ, ಫೋಟೋ ಅಥವಾ ವಿಡಿಯೋ ಕಳುಹಿಸಿ.",
+    "ack_video": "ನಿನ್ನ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ ಮಗು. ಜೋಪಾನವಾಗಿ ಇಟ್ಟು, ಮ್ಯೂಸಿಯಂನಲ್ಲಿ ತೋರಿಸಲು ಸಿದ್ಧ ಮಾಡುತ್ತಿದ್ದೇನೆ.",
+    "video_too_big": "ಈ ವಿಡಿಯೋ 20 MB ಗಿಂತ ದೊಡ್ಡದು, Telegram ನನಗೆ 20 MB ವರೆಗಿನ ಫೈಲ್ ಮಾತ್ರ ತರಲು ಬಿಡುತ್ತದೆ. ಚಿಕ್ಕ ಕ್ಲಿಪ್ ಕಳುಹಿಸು, ಅಥವಾ ಫೈಲ್ ಆಗಿ ಅಲ್ಲದೆ ಸಾಮಾನ್ಯ ವಿಡಿಯೋ ಆಗಿ ಕಳುಹಿಸು, ಆಗ Telegram ಅದನ್ನು ಚಿಕ್ಕದು ಮಾಡುತ್ತದೆ.",
+    "video_saved": "ಒಂದೆರಡು ನಿಮಿಷದಲ್ಲಿ ವಿಡಿಯೋ ಮ್ಯೂಸಿಯಂನಲ್ಲಿ ನೋಡಲು ಸಿದ್ಧವಾಗುತ್ತದೆ.",
+    "video_trimmed": "ಇದು ಉದ್ದವಿದೆ, ಅದಕ್ಕೆ ಮ್ಯೂಸಿಯಂನಲ್ಲಿ ಮೊದಲ 2 ನಿಮಿಷ ತೋರಿಸುತ್ತೇನೆ; ಪೂರ್ತಿ ವಿಡಿಯೋ ಜೋಪಾನವಾಗಿದೆ.",
 }
 TABLES = {"en-IN": EN, "hi-IN": HI, "kn-IN": KN}
 LANG_BUTTONS = [("English", "en-IN"), ("हिन्दी", "hi-IN"), ("ಕನ್ನಡ", "kn-IN")]

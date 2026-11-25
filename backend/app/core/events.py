@@ -65,6 +65,9 @@ async def create_event(family_id, member_id, name, kind, year, month) -> dict:
     year, month = int(year), int(month)
     if not (1900 <= year <= 2200 and 1 <= month <= 12):
         raise ValueError("That isn't a valid year and month.")
+    top = museum.last_year(await common.family(str(family_id)))
+    if year > top:
+        raise ValueError(f"The museum's floors only go up to {top}.")
     if kind not in KINDS:
         kind = "festival" if festival_in(name) else ("birthday" if "birthday" in name.lower() else "other")
     existing = await db.fetchrow(
@@ -73,9 +76,9 @@ async def create_event(family_id, member_id, name, kind, year, month) -> dict:
     row = existing or await db.fetchrow(
         "INSERT INTO events(family_id, name, kind, year, month, created_by) VALUES ($1::uuid,$2,$3,$4,$5,$6::uuid) "
         "RETURNING *", str(family_id), name, kind, year, month, common.sid(member_id))
-    first, _ = await museum.year_span(str(family_id))
     st = await museum.room_state(str(family_id), year, month)
-    return {"event": _event(row), "level": museum.floor_level(first, year), "room": {"year": year, "month": month},
+    return {"event": _event(row), "level": museum.floor_level(year), "floor_number": museum.floor_number(year),
+            "room": {"year": year, "month": month},
             "room_state": st, "created": existing is None}
 
 

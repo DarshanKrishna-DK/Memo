@@ -1,5 +1,12 @@
 """The museum is computed from saved memories: floors from years, rooms from months, boards from state.
 
+Floors use one FIXED calendar for every family (and every public link): the ground floor, beside the lobby, is
+2002 and each later year is one floor up. level = year - 2002 (0 = ground / lobby level, what the 3D lift uses);
+the floor number people see = year - 2001 (2002 = floor 1, the ground floor; 2026 = floor 25). Years before 2002
+go below ground as basements (2001 = basement 1, 2000 = basement 2, ...): the same formula, no special case.
+Floors run up to the current year + 1. Only years that hold something (plus the ground and the current year) are
+listed as floors; any other year in range still has a floor (all doors shut) when a route asks for it.
+
 States: open (>=1 saved memory) / locked (past, empty) / not_yet (future) / current_empty / closed (closed_with_care).
 Board text is deterministic per family+year+month+state (sha256 pick), so a room shows the same line every visit.
 """
@@ -26,8 +33,31 @@ NEUTRAL = "No memories here yet."
 PROMPT = "Tell {grandma} on Telegram to open this door."
 
 
-def floor_level(first_year: int, year: int) -> int:
-    return max(0, int(year) - int(first_year))
+GROUND_YEAR = 2002
+MIN_YEAR = 1900
+
+
+def floor_level(year: int) -> int:
+    """0 = the ground floor (2002, beside the lobby); 24 = 2026; negative = basement (before 2002)."""
+    return int(year) - GROUND_YEAR
+
+
+def floor_number(year: int) -> int:
+    """The floor number people see: 2002 -> 1 (the ground floor), 2026 -> 25. <= 0 before 2002 (basements)."""
+    return int(year) - (GROUND_YEAR - 1)
+
+
+def floor_name(year: int) -> str:
+    """English label: 'the ground floor' (2002), 'floor 25' (2026), 'basement 1' (2001)."""
+    lvl = floor_level(year)
+    if lvl == 0:
+        return "the ground floor"
+    return f"floor {floor_number(year)}" if lvl > 0 else f"basement {-lvl}"
+
+
+def last_year(fam: dict) -> int:
+    """The highest floor: the current year + 1 (a planned trip next year can have its room)."""
+    return common.tz_today(fam["timezone"]).year + 1
 
 
 def _pick(lines: list[str], family_id: Any, year: int, month: int, state: str) -> str:
@@ -66,20 +96,17 @@ def _state(count: int, closed: bool, year: int, month: int, cur: tuple[int, int]
     return "locked"
 
 
-async def year_span(family_id: str, fam: dict | None = None) -> tuple[int, int]:
-    """(first_year, last_year). First = earliest saved memory or event year (never after the current year);
-    last = current year, or later if an event is planned in a future year."""
+async def floor_years(family_id: str, fam: dict | None = None) -> list[int]:
+    """Years listed as floors, newest first: the ground (2002), the current year, and every year (<= current + 1)
+    that holds a saved memory or an event. Empty years in between are skipped (no geometry, no lift button)."""
     fam = fam or await common.family(family_id)
     cur = common.tz_today(fam["timezone"]).year
-    r = await db.fetchrow(
-        "SELECT (SELECT min(event_year) FROM memories WHERE family_id=$1::uuid AND status='saved' "
-        "        AND event_year IS NOT NULL) AS my, "
-        "       (SELECT min(year) FROM events WHERE family_id=$1::uuid) AS ey, "
-        "       (SELECT max(year) FROM events WHERE family_id=$1::uuid) AS ex", family_id)
-    firsts = [y for y in (r["my"], r["ey"]) if y is not None]
-    first = min(min(firsts), cur) if firsts else cur
-    last = max(cur, r["ex"] or cur)
-    return first, last
+    top = cur + 1
+    rows = await db.fetch(
+        "SELECT DISTINCT event_year AS y FROM memories WHERE family_id=$1::uuid AND status='saved' "
+        "AND event_year IS NOT NULL UNION SELECT DISTINCT year FROM events WHERE family_id=$1::uuid", family_id)
+    years = {GROUND_YEAR, cur} | {int(r["y"]) for r in rows if MIN_YEAR <= int(r["y"]) <= top}
+    return sorted(years, reverse=True)
 
 
 async def year_rooms(family_id: str, year: int, fam: dict | None = None) -> dict:
@@ -88,7 +115,6 @@ async def year_rooms(family_id: str, year: int, fam: dict | None = None) -> dict
     today = common.tz_today(fam["timezone"])
     cur = (today.year, today.month)
     sarcasm = await common.sarcasm_on(family_id, fam)
-    first, _ = await year_span(family_id, fam)
     counts = {r["event_month"]: r for r in await db.fetch(
         "SELECT event_month, count(*) AS n, "
         "       bool_or(sensitivity <> 'none') AS sensitive, "
@@ -101,7 +127,7 @@ async def year_rooms(family_id: str, year: int, fam: dict | None = None) -> dict
     heroes = {r["event_month"]: r["thumb_key"] for r in await db.fetch(
         "SELECT DISTINCT ON (m.event_month) m.event_month, md.thumb_key "
         "FROM memories m JOIN media md ON md.memory_id=m.id "
-        "WHERE m.family_id=$1::uuid AND m.status='saved' AND m.event_year=$2 AND md.type='photo' "
+        "WHERE m.family_id=$1::uuid AND m.status='saved' AND m.event_year=$2 AND md.type IN ('photo','video') "
         "      AND md.thumb_key IS NOT NULL "
         "ORDER BY m.event_month, md.is_blurry, m.event_day NULLS LAST, md.sort_order, md.created_at",
         family_id, year)}
@@ -130,7 +156,7 @@ async def year_rooms(family_id: str, year: int, fam: dict | None = None) -> dict
     floor_board = None
     if floor_empty:
         floor_board = FLOOR_EMPTY if sarcasm else NEUTRAL
-    return {"year": year, "level": floor_level(first, year), "open": open_n, "total": 12,
+    return {"year": year, "level": floor_level(year), "floor_number": floor_number(year), "open": open_n, "total": 12,
             "floor_board": floor_board, "rooms": rooms}
 
 
@@ -142,9 +168,9 @@ async def room_state(family_id, year, month) -> dict:
 
 
 async def floors(family_id: str, fam: dict | None = None) -> list[dict]:
-    """FloorSummary list, newest first, always including the current year."""
+    """FloorSummary list, newest first: the ground (2002), the current year and every year holding something."""
     fam = fam or await common.family(family_id)
-    first, last = await year_span(family_id, fam)
+    years = await floor_years(family_id, fam)
     closed = {(r["year"], r["month"]) for r in await db.fetch(
         "SELECT year, month FROM room_settings WHERE family_id=$1::uuid AND mode='closed_with_care'", family_id)}
     opened: dict[int, set] = {}
@@ -153,15 +179,15 @@ async def floors(family_id: str, fam: dict | None = None) -> list[dict]:
             "AND event_year IS NOT NULL AND event_month IS NOT NULL", family_id):
         if (r["event_year"], r["event_month"]) not in closed:
             opened.setdefault(r["event_year"], set()).add(r["event_month"])
-    return [{"year": y, "open": len(opened.get(y, ())), "total": 12, "level": floor_level(first, y)}
-            for y in range(last, first - 1, -1)]
+    return [{"year": y, "open": len(opened.get(y, ())), "total": 12, "level": floor_level(y),
+             "floor_number": floor_number(y)} for y in years]
 
 
 async def summary_counts(family_id: str) -> dict:
     attic = await db.fetchval("SELECT count(*) FROM memories WHERE family_id=$1::uuid AND status='attic'", family_id)
     latest = await db.fetchrow(
         "SELECT m.id, coalesce(m.title, m.summary, left(m.text_original, 60)) AS title, m.event_year, m.event_month, "
-        "  (SELECT md.thumb_key FROM media md WHERE md.memory_id=m.id AND md.type='photo' "
+        "  (SELECT md.thumb_key FROM media md WHERE md.memory_id=m.id AND md.type IN ('photo','video') "
         "   ORDER BY md.sort_order, md.created_at LIMIT 1) AS thumb_key "
         "FROM memories m WHERE m.family_id=$1::uuid AND m.status='saved' "
         "AND NOT EXISTS (SELECT 1 FROM room_settings rs WHERE rs.family_id=m.family_id AND rs.year=m.event_year "

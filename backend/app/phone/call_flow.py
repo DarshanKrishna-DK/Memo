@@ -108,7 +108,13 @@ def signature_ok(request, params: list[tuple[str, str]]) -> bool:
         return False
     q = request.url.query
     url = config.PUBLIC_BASE_URL + request.url.path + (f"?{q}" if q else "")
-    return hmac.compare_digest(twilio_signature(token, url, params if request.method == "POST" else []), sent)
+    ok = hmac.compare_digest(twilio_signature(token, url, params if request.method == "POST" else []), sent)
+    if not ok:
+        import logging
+        logging.getLogger("memo.twilio").warning("signature mismatch for %s (params=%d, host=%s, fwd_host=%s)", url,
+                                                 len(params), request.headers.get("host"),
+                                                 request.headers.get("x-forwarded-host"))
+    return ok
 
 
 # ------------------------------------------------------------------ context + text

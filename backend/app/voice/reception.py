@@ -74,6 +74,8 @@ TOOLS = [
     _fn("invite_contact", "Invite a saved contact into a room by phone. The call is confirmed aloud first.", {
         "who": {"type": "string", "description": "Name or relation, e.g. 'Priya', 'my sister'"},
         "place": {"type": "string", "description": "Room or event words if the user named one"}}, ["who"]),
+    _fn("list_events", "Say which events (and rooms with memories) the family's museum has, newest first. For "
+        "'list all events', 'what events do we have', 'saare events batao', 'ella events helu'.", {}),
     _fn("decline", "The request needs something the desk cannot do (recognising faces or what is inside photos, "
         "anything else outside these tools).", {
         "reason": {"type": "string", "enum": ["face_recognition", "out_of_scope"]}}, ["reason"]),
@@ -97,6 +99,7 @@ RX_EXAMPLES = """Examples (what the user says -> the one tool call):
 - "sarcasm band karo" / "vyangya beda" -> change_setting(key="sarcasm", value="off")
 - "Dadi ka naam Nani rakh do" -> change_setting(key="grandma_name", value="Nani")
 - "Priya ko is room mein bulao" / "Priya na karesi" -> invite_contact(who="Priya")
+- "list all events" / "what events do we have?" / "saare events batao" / "ella events helu" -> list_events()
 - "what happened in that room with the cake?" / "cake wali photos" / "photos with my dad in them" -> decline(reason="face_recognition")
 - "hi" / "kaise ho?" / "hegiddira?" -> no tool, one short friendly line"""
 
@@ -112,7 +115,7 @@ def system_prompt(lang: str, st: dict, room: Optional[dict], today: date, regist
     return (
         "You are the receptionist robot at the front desk of a family memory museum: friendly, crisp, upbeat, "
         "efficient but warm. You act only through your tools: create_event, query_gallery, import_gallery, "
-        "plan_route, change_setting, invite_contact, decline. People talk any way they like: English, Hindi, Kannada, "
+        "plan_route, change_setting, invite_contact, list_events, decline. People talk any way they like: English, Hindi, Kannada, "
         "Hinglish, Kanglish, Roman or native script, slang, typos, half sentences, indirect wishes ('I wanna see...'). "
         "Work out what they want and make ONE tool call.\n"
         "DATES: never work them out. Copy the user's date words into `when`, translated to English but not resolved "
@@ -179,6 +182,24 @@ FACES_RE = re.compile(r"\b(face|faces|with (my |our )?\w+ in (them|it)|who is in
                       r"|\b(room|photos?|pics?|pictures?|images?)\s+(with|having|showing)\s+(the|a|an|that)\s+\w+"
                       r"|\b(photos?|pics?|pictures?)\s+of\s+(the|a|an)\s+(cake|dog|cat|beach|tree|car|sea|food|"
                       r"lamps?|diyas?|rangoli|baby|kids?)\b", re.I)
+# "list all events" / "what events do we have" / "saare events batao" / "ella events helu" / "ಎಲ್ಲಾ ಈವೆಂಟ್‌ಗಳು".
+# Plural or list words only, so "take me to the Diwali event" stays a route and "add an event" stays create_event.
+LIST_EVENTS_RE = re.compile(
+    r"\blist\b.{0,25}\bevents?\b|\bevents?\s+list\b|\b(what|which|how many)\s+(all\s+)?(the\s+)?events?\b|"
+    r"\b(all|my|our|the|any)\s+(the\s+)?(family\s+)?events\b|\bevents\s+(do|did|have|are|we|in)\b|"
+    r"\b(saare|sare|saari|sari|sab|sabhi|kaun ?se|kaunse|kitne)\s+(ke\s+)?events?\b|"
+    r"\bevents\s+(batao|bata do|batado|dikhao|dikha do|kya kya|helu|heli|hel|torsu|torisu|thorsu|thorisu)\b|"
+    r"\b(ella|yella|ellaa|yaava yaava|eshtu)\s+events?\b|"
+    r"(सारे|सभी|कौन से|कौन-से|कितने)\s*(इवेंट|ईवेंट)|(इवेंट|ईवेंट)्?स?\s*(बताओ|बताइए|बता दो|दिखाओ|की लिस्ट)|"
+    r"(ಎಲ್ಲಾ|ಎಲ್ಲ|ಯಾವ ಯಾವ|ಎಷ್ಟು)\s*ಈವೆಂಟ್|ಈವೆಂಟ್‌?ಗಳ", re.I)
+LIST_BLOCK_RE = re.compile(r"\b(add|create|make|new|naya|nayi|hosa|banao|bana do|seri|serisi|called|named)\b|"
+                           r"बनाओ|जोड़|ಸೇರಿಸ|ಹೊಸ", re.I)
+
+
+def wants_event_list(text: str) -> bool:
+    return bool(LIST_EVENTS_RE.search(text or "")) and not LIST_BLOCK_RE.search(text or "")
+
+
 KW = [
     ("invite_contact", re.compile(r"\binvite\b|\bcall (my|our|\w+) (to|into|and)|बुलाओ|बुला लो|इनवाइट|ಆಹ್ವಾನಿಸ|ಕರೆಸಿ|"
                                   r"\b\w+\s+(ko|ku)\s+(bulao|bula lo|bulalo|bula do|invite karo)\b|\bkaresi\b|"
@@ -237,6 +258,8 @@ def keyword_plan(text: str) -> list[tuple[str, dict]]:
     t = text or ""
     if FACES_RE.search(t):
         return [("decline", {"reason": "face_recognition"})]
+    if wants_event_list(t):
+        return [("list_events", {})]
     en = to_english_dates(t)
     event_name, rest = _event_mention(en)
     when_src = rest if event_name else en
@@ -368,7 +391,7 @@ class Desk:
         self.st["pending"] = None
         self.st["current_event"] = {"id": str(ev["id"]), "name": ev["name"], "year": ev["year"], "month": ev["month"]}
         label = f"{ev['name']} {ev['year']}" if str(ev["year"]) not in ev["name"] else ev["name"]
-        floor = L.floor_label(int(res["level"]), self.reg)
+        floor = floor_words(int(ev["year"]), self.reg)
         key = "rx_event_created" if res.get("created", True) else "rx_event_exists"
         spoken = self.say(key, event=label, floor=floor, month=L.month_name(ev["month"], self.reg))
         state = (res.get("room_state") or {}).get("state")
@@ -516,7 +539,10 @@ class Desk:
             place = self._month_label(route["year"], route["month"])
         key = "rx_route" if route["room_state"] == "open" else "rx_route_locked"
         self.action = {"type": "route", "data": route}
-        return {"ok": True, "spoken": self.say(key, place=place), "final": True, "result": route}
+        spoken = self.say(key, place=place)
+        if route.get("needs_lift"):
+            spoken += " " + lift_line(route["year"], self.reg)
+        return {"ok": True, "spoken": spoken, "final": True, "result": route}
 
     async def plan_route(self, a: dict) -> dict:
         if self.role == "viewer" and self.room:
@@ -654,6 +680,49 @@ class Desk:
         self.action = {"type": "invite_called", "data": {"invite": inv["invite"], "call": call, "contact": c}}
         return {"ok": True, "spoken": self.say("rx_invite_placed", name=c["name"]), "final": True}
 
+    # -- list_events (facts from the database only; the model never writes this answer)
+    async def list_events(self, a: dict) -> dict:
+        cap = 8
+        guest_room = self.room if self.role == "viewer" and self.room and self.room.get("month") else None
+        rows = await db.fetch(
+            "SELECT e.id, e.name, e.year, e.month, (SELECT count(*) FROM memories m WHERE m.event_id=e.id "
+            "AND m.status='saved') AS n FROM events e WHERE e.family_id=$1::uuid "
+            "AND ($2::int IS NULL OR (e.year=$2 AND e.month=$3)) "
+            "AND NOT EXISTS (SELECT 1 FROM room_settings rs WHERE rs.family_id=e.family_id AND rs.year=e.year "
+            "                AND rs.month=e.month AND rs.mode='closed_with_care') "
+            "ORDER BY e.year DESC, e.month DESC, e.created_at DESC",
+            self.fid, guest_room["year"] if guest_room else None, guest_room["month"] if guest_room else None)
+        rooms = [] if guest_room else await db.fetch(
+            "SELECT m.event_year AS year, m.event_month AS month, count(*) AS n FROM memories m "
+            "WHERE m.family_id=$1::uuid AND m.status='saved' AND m.event_id IS NULL AND m.event_year IS NOT NULL "
+            "AND NOT EXISTS (SELECT 1 FROM room_settings rs WHERE rs.family_id=m.family_id AND rs.year=m.event_year "
+            "                AND rs.month=m.event_month AND rs.mode='closed_with_care') "
+            "GROUP BY 1, 2 ORDER BY 1 DESC, 2 DESC LIMIT 4", self.fid)
+        events = [{"id": str(r["id"]), "event_id": str(r["id"]), "name": r["name"], "year": r["year"],
+                   "month": r["month"], "memory_count": int(r["n"]), "label": r["name"]} for r in rows]
+        room_items = [{"year": r["year"], "month": r["month"], "event_id": None, "memory_count": int(r["n"]),
+                       "label": self._month_label(r["year"], r["month"])} for r in rooms]
+        shown = events[:cap]
+        groups: list[str] = []                       # grouped by year, newest first
+        for y in sorted({e["year"] for e in shown}, reverse=True):
+            items = ", ".join(f"{e['name']} ({L.month_name(e['month'], self.reg)})" for e in shown if e["year"] == y)
+            groups.append(f"{y}: {items}")
+        rooms_line = (self.say("rx_events_rooms", list=", ".join(r["label"] for r in room_items))
+                      if room_items else "")
+        if shown:
+            more = self.say("rx_events_more", n=len(events) - cap) if len(events) > cap else ""
+            spoken = self.say("rx_events", count=len(events), events=L.plural(len(events), "event", "events"),
+                              list="; ".join(groups), more=more) + rooms_line
+        else:
+            spoken = self.say("rx_events_none", rooms=rooms_line)
+        options = [{"year": e["year"], "month": e["month"], "event_id": e["event_id"], "label": e["label"]}
+                   for e in shown] + [{k: r[k] for k in ("year", "month", "event_id", "label")} for r in room_items]
+        if options:
+            self.st["pending"] = {"kind": "choose_place", "options": options, "said": [self.user_text]}
+        self.action = {"type": "events_listed", "data": {"events": events[:cap], "rooms": room_items,
+                                                        "total": len(events), "more": max(0, len(events) - cap)}}
+        return {"ok": True, "spoken": spoken, "final": True, "question": bool(options), "result": self.action["data"]}
+
     async def decline(self, a: dict) -> dict:
         key = "rx_no_faces" if a.get("reason") == "face_recognition" else "rx_cant"
         return {"ok": True, "spoken": self.say(key), "final": True}
@@ -670,6 +739,64 @@ class Desk:
             log.error("core service missing for %s: %s", name, e)
             return {"ok": False, "spoken": self.say("rx_error", reason="that part of the museum isn't ready yet."),
                     "final": True}
+
+
+# ---------------------------------------------------------------- floor words (fixed calendar for every family)
+# 2002 = the ground floor (level 0, floor 1); each later year one floor up (2026 = level 24 = "the 25th floor");
+# before 2002 = basements. Ground / "floor N" come from lang.py's floor_ground / floor_n copy.
+FLOOR_COPY = {
+    "lift_up": {"en-IN": "Taking the lift to the {ord} floor — {year}.",
+                "hi-IN": "लिफ़्ट से {ord} मंज़िल पर चलते हैं — {year}।",
+                "kn-IN": "ಲಿಫ್ಟ್‌ನಲ್ಲಿ {n}ನೇ ಮಹಡಿಗೆ ಹೋಗೋಣ — {year}.",
+                "hinglish": "Lift se {ord} floor pe chalte hain — {year}.",
+                "kanglish": "Lift alli {ord} floor ge hogona — {year}."},
+    "lift_down": {"en-IN": "Taking the lift down to basement {n} — {year}.",
+                  "hi-IN": "लिफ़्ट से नीचे बेसमेंट {n} में चलते हैं — {year}।",
+                  "kn-IN": "ಲಿಫ್ಟ್‌ನಲ್ಲಿ ಕೆಳಗೆ ಬೇಸ್‌ಮೆಂಟ್ {n}ಗೆ ಹೋಗೋಣ — {year}.",
+                  "hinglish": "Lift se neeche basement {n} chalte hain — {year}.",
+                  "kanglish": "Lift alli kelage basement {n} ge hogona — {year}."},
+    "basement": {"en-IN": "basement {n}", "hi-IN": "बेसमेंट {n}", "kn-IN": "ಬೇಸ್‌ಮೆಂಟ್ {n}ರಲ್ಲಿ",
+                 "hinglish": "basement {n}", "kanglish": "basement {n} alli"},
+}
+_HI_ORD = {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी", 6: "छठी"}
+
+
+def _fc(key: str, lang: str, **kw: Any) -> str:
+    row = FLOOR_COPY[key]
+    return (row.get(lang) or row.get(L.norm(lang)) or row["en-IN"]).format(**kw)
+
+
+def ordinal(n: int, lang: str) -> str:
+    """25 -> '25th' (en / Roman registers), '25वीं' (hi), '25ನೇ' (kn)."""
+    if lang == "hi-IN":
+        return _HI_ORD.get(n, f"{n}वीं")
+    if lang == "kn-IN":
+        return f"{n}ನೇ"
+    suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
+
+
+def floor_words(year: int, lang: str) -> str:
+    """'the ground floor' (2002) / 'floor 25' (2026) / 'basement 1' (2001) in the session language."""
+    from ..core import museum
+    lvl = museum.floor_level(year)
+    if lvl == 0:
+        return L.t("floor_ground", lang)
+    if lvl < 0:
+        return _fc("basement", lang, n=-lvl)
+    return L.t("floor_n", lang, n=museum.floor_number(year))
+
+
+def lift_line(year: int, lang: str) -> str:
+    """'Taking the lift to the 25th floor — 2026.' ('' on the ground floor: no lift)."""
+    from ..core import museum
+    lvl = museum.floor_level(year)
+    if lvl == 0:
+        return ""
+    if lvl < 0:
+        return _fc("lift_down", lang, n=-lvl, year=year)
+    n = museum.floor_number(year)
+    return _fc("lift_up", lang, n=n, ord=ordinal(n, lang), year=year)
 
 
 SETTING_LINES = {
@@ -846,6 +973,8 @@ async def route_intent(text: str, language: str = "en-IN") -> tuple[str, dict]:
         return "change_setting", {"key": "language", "value": sw}
     if FACES_RE.search(text):
         return "decline", {"reason": "face_recognition"}
+    if wants_event_list(text):
+        return "list_events", {}
     return await choose_intent(text, language)
 
 
@@ -915,6 +1044,9 @@ async def act_core(family_id: str, member_id: Optional[str], text: str, language
     if res is None and FACES_RE.search(text):
         res = await d.decline({"reason": "face_recognition"})
         steps.append({"tool": "decline", "args": {"reason": "face_recognition"}, "ok": True})
+    if res is None and wants_event_list(text):        # answered from the DB in code, in every register
+        res = await d.list_events({})
+        steps.append({"tool": "list_events", "args": {}, "ok": True})
     reply = res["spoken"] if res else ""
     if res is None:
         source = "llm"

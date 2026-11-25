@@ -5,6 +5,7 @@ import { useWorld } from '../state/worldStore';
 import { useVoiceUi, voice } from '../voice/controller';
 import { ConfirmModal, Field, MONTHS, Modal, Orb, Spinner, fmtBytes, monthName, useAction, useLoad } from '../ui/common';
 import { filterLocal, isImage, readLocalPhoto, type LocalPhoto } from '../lib/exif';
+import { floorLabel } from '../lib/floors';
 
 type Tab = 'talk' | 'photos';
 type Sub = null | 'event' | 'room' | 'contacts' | 'invites';
@@ -100,7 +101,7 @@ function EventTab({ onAddPhotos }: { onAddPhotos: (id: string) => void }) {
       {a.error && <p className="err" role="alert">{a.error}</p>}
       {made && (
         <div className="plaque" role="status">
-          <p>{made.event.name} {made.event.year} is added. It lives on floor {made.level}, in the {monthName(made.event.month)} room. A room with no memories keeps its door shut.</p>
+          <p>{made.event.name} {made.event.year} is added. It lives on {made.level === 0 ? 'the ground floor' : floorLabel(made.level).toLowerCase()} ({made.event.year}), in the {monthName(made.event.month)} room. A room with no memories keeps its door shut.</p>
           <div className="row" style={{ marginTop: 8 }}><button type="button" className="btn btn-brass" onClick={() => onAddPhotos(made.event.id)}>Add photos</button></div>
         </div>
       )}
@@ -269,7 +270,7 @@ export function RoomTab() {
   const rooms = floorRooms[year] ?? [];
   return (
     <div className="stack">
-      <Field label="Floor"><select className="input" value={year} onChange={(e) => setYear(+e.target.value)}>{(museum?.floors ?? []).map((f) => <option key={f.year} value={f.year}>{f.year} (floor {f.level}, {f.open} of 12 open)</option>)}</select></Field>
+      <Field label="Floor"><select className="input" value={year} onChange={(e) => setYear(+e.target.value)}>{(museum?.floors ?? []).map((f) => <option key={f.year} value={f.year}>{f.year} ({floorLabel(f.level)}, {f.open} of 12 open)</option>)}</select></Field>
       <div className="months">
         {rooms.map((r) => (
           <button key={r.month} className={`month month--${r.state}`} onClick={() => void goTo(r.year, r.month)} aria-label={`${monthName(r.month)} ${r.year}, ${r.state.replace('_', ' ')}`}>

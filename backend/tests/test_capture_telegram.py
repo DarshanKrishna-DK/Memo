@@ -197,8 +197,11 @@ async def test_too_big_file_and_unsupported_and_rate_limit(tg):
     await handlers.process_update(message(user, voice={"file_id": "a", "file_unique_id": "b", "duration": 5,
                                                        "file_size": 30 * 1024 * 1024}))
     assert "too big" in tg.sent(user)[-1]["text"]
-    await handlers.process_update(message(user, video={"file_id": "v"}, caption="clip"))
-    assert "videos" in tg.sent(user)[-1]["text"]
+    await handlers.process_update(message(user, audio={"file_id": "a1", "file_unique_id": "a1u"}, caption="song"))
+    assert "can't keep audio files" in tg.sent(user)[-1]["text"]
+    await handlers.process_update(message(user, document={"file_id": "d1", "file_unique_id": "d1u",
+                                                          "mime_type": "application/pdf"}))
+    assert "can't keep audio files" in tg.sent(user)[-1]["text"]
     for _ in range(35):
         await handlers.process_update(message(user, text="/help"))
     assert "Slow down" in tg.sent(user)[-1]["text"]

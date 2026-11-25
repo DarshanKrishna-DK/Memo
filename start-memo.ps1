@@ -21,6 +21,10 @@ if ($url) {
   $envFile = Join-Path $root ".env.local"
   (Get-Content $envFile) -replace '^PUBLIC_BASE_URL=.*', "PUBLIC_BASE_URL=$url" -replace '^WEB_BASE_URL=.*', "WEB_BASE_URL=$url" | Set-Content -Encoding utf8 $envFile
   Write-Host "Public URL: $url"
+  # Keep the GitHub repo's website link pointing at the live tunnel (needs the gh CLI signed in; skipped otherwise).
+  if (Get-Command gh -ErrorAction SilentlyContinue) {
+    try { gh repo edit DarshanKrishna-DK/Memo --homepage $url 2>$null | Out-Null } catch { }
+  }
 } else { Write-Warning "Tunnel URL not found; phone calls and Agora live voice will be unavailable." }
 
 $py = Join-Path $root "backend\.venv\Scripts\python.exe"

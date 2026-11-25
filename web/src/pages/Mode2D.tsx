@@ -3,6 +3,7 @@ import type { Room } from '../contract';
 import { useWorld } from '../state/worldStore';
 import { Spinner, monthName } from '../ui/common';
 import { RoomTools } from './RoomUi';
+import { floorLabel } from '../lib/floors';
 
 const STATE_LABEL: Record<string, string> = { open: 'Open', locked: 'Locked', not_yet: 'Not yet', current_empty: 'Waiting for its first memory', closed: 'Closed with care' };
 
@@ -13,10 +14,10 @@ function Floor({ year, level, open: openRooms, startOpen }: { year: number; leve
   const rooms: Room[] | undefined = floorRooms[year];
   useEffect(() => { if (show && !rooms) loadFloor(year).catch((e) => setErr(e instanceof Error ? e.message : 'Could not load this floor.')); }, [show, rooms, year, loadFloor]);
   return (
-    <section className="floor" aria-label={`Floor ${level}, ${year}`}>
+    <section className="floor" aria-label={`${floorLabel(level)}, ${year}`}>
       <div className="floor-head">
         <h2 className="floor-year">{year}</h2>
-        <span className="chip chip--teal">Floor {level}</span>
+        <span className="chip chip--teal">{floorLabel(level)}</span>
         <span className="muted">{openRooms} of 12 rooms open</span>
         <span className="grow" />
         <button className="btn btn-sm" aria-expanded={show} onClick={() => setShow((v) => !v)}>{show ? 'Hide rooms' : 'Show rooms'}</button>

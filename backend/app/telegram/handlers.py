@@ -236,24 +236,35 @@ def _forward_from(msg: dict) -> str | None:
             or (o.get("chat") or {}).get("title") or o.get("type"))
 
 
+def _video_of(msg: dict) -> dict | None:
+    """video, video_note, animation (GIF-style mp4) or a document whose mime type is video/*."""
+    for k in ("video", "video_note", "animation"):
+        if msg.get(k):
+            return {**msg[k], "mime_type": msg[k].get("mime_type") or "video/mp4"}
+    doc = msg.get("document")
+    if doc and (doc.get("mime_type") or "").lower().startswith("video/"):
+        return doc
+    return None
+
+
 async def _capture(msg: dict, update_id: int, member) -> None:
     chat, lang = msg["chat"]["id"], member["flang"]
-    voice, photos = msg.get("voice"), msg.get("photo")
+    voice, photos, vid = msg.get("voice"), msg.get("photo"), _video_of(msg)
     typed = (msg.get("text") or msg.get("caption") or "").strip()
-    if not (typed or voice or photos):
+    if (msg.get("document") and not vid) or msg.get("audio"):
         await send.send_message(chat, t(lang, "unsupported"))
         return
-    if msg.get("video") or msg.get("document") or msg.get("video_note") or msg.get("audio"):
+    if not (typed or voice or photos or vid):
         await send.send_message(chat, t(lang, "unsupported"))
         return
     best = photos[-1] if photos else None
-    size = (voice or best or {}).get("file_size") or 0
+    size = (voice or best or vid or {}).get("file_size") or 0
     if size > MAX_FILE:
-        await send.send_message(chat, t(lang, "too_big"))
+        await send.send_message(chat, t(lang, "video_too_big" if vid else "too_big"))
         return
 
     # an answer to Grandma's follow-up question?
-    if not photos and not msg.get("forward_origin"):
+    if not photos and not vid and not msg.get("forward_origin"):
         fu = await _open_followup(member, msg)
         if fu is not None:
             if fu["memory_id"] is None:                 # asked from the theater: the answer is also a new memory
@@ -268,7 +279,7 @@ async def _capture(msg: dict, update_id: int, member) -> None:
     group = msg.get("media_group_id")
     src = f"mg:{chat}:{group}" if group else str(update_id)
     kind = ("forward" if msg.get("forward_origin") else "album" if group else "voice" if voice
-            else "photo" if photos else "text")
+            else "photo" if photos else "video" if vid else "text")
     captured = datetime.fromtimestamp(msg["date"], timezone.utc)
     meta = {"typed": typed}
     if _forward_from(msg):
@@ -294,7 +305,13 @@ async def _capture(msg: dict, update_id: int, member) -> None:
             "INSERT INTO media(memory_id, type, width, height, tg_file_id, tg_file_unique_id, tg_file_size, sort_order) "
             "VALUES ($1,'photo',$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING", mid, best.get("width"), best.get("height"),
             best["file_id"], best["file_unique_id"], best.get("file_size"), msg["message_id"])
-    if not created:                                      # another photo of an album already being captured
+    if vid:
+        await db.execute(
+            "INSERT INTO media(memory_id, type, mime, width, height, duration_s, tg_file_id, tg_file_unique_id, "
+            "tg_file_size, sort_order) VALUES ($1,'video',$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING", mid,
+            vid["mime_type"], vid.get("width") or vid.get("length"), vid.get("height") or vid.get("length"),
+            vid.get("duration"), vid["file_id"], vid["file_unique_id"], vid.get("file_size"), msg["message_id"])
+    if not created:                                     # another photo of an album already being captured
         if typed:
             await db.execute("UPDATE memories SET text_original=coalesce(text_original,$2), "
                              "tg_meta=tg_meta || jsonb_build_object('typed',$2::text) WHERE id=$1 AND "
@@ -302,7 +319,7 @@ async def _capture(msg: dict, update_id: int, member) -> None:
         if row["status"] in ("saved", "attic"):
             await jobs.enqueue("capture", {"memory_id": mid})
         return
-    await send.send_message(chat, t(lang, "ack_album" if group else "ack"))
+    await send.send_message(chat, t(lang, "ack_album" if group else "ack_video" if vid else "ack"))
     await jobs.enqueue("capture", {"memory_id": mid}, delay_s=2.5 if group else 0)
 
 
@@ -416,8 +433,11 @@ async def _on_callback(cb: dict) -> None:
             await db.execute("UPDATE media SET blur_kept=true WHERE memory_id=$1 AND is_blurry", mid)
         else:
             from .. import storage
-            for r in await db.fetch("SELECT storage_key, large_key, thumb_key FROM media WHERE memory_id=$1 AND is_blurry "
-                                    "AND NOT blur_kept", mid):
+            from ..media import cleanup_history
+            gone = await db.fetch("SELECT id, memory_id, storage_key, large_key, thumb_key, blur_score FROM media "
+                                  "WHERE memory_id=$1 AND is_blurry AND NOT blur_kept", mid)
+            await cleanup_history.insert(db, await cleanup_history.prepare_deleted_media(str(mem["family_id"]), gone))
+            for r in gone:
                 for k in (r["storage_key"], r["large_key"], r["thumb_key"]):
                     storage.delete(k)
             await db.execute("DELETE FROM media WHERE memory_id=$1 AND is_blurry AND NOT blur_kept", mid)

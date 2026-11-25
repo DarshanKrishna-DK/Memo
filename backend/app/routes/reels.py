@@ -19,10 +19,23 @@ class ReelIn(BaseModel):
     event_id: Optional[str] = None
     narrated: bool = False
     aspect: Literal["16:9", "9:16"] = "16:9"
+    # Timed montage (all optional; leaving them out keeps the classic reel):
+    target_s: Optional[float] = Field(None, ge=10, le=180)     # aim for this length (photo time is fitted to it)
+    max_photos: Optional[int] = Field(None, ge=1, le=40)       # the sharpest N photos, shown in date order
+    title: Optional[str] = Field(None, max_length=80)          # title card text (default: event name / month)
+    voiceover: Optional[Literal["tour", "facts"]] = None       # narrated: Grandma's tour, or a short facts script
+
+    def options(self) -> dict:
+        return {k: v for k, v in (("target_s", self.target_s), ("max_photos", self.max_photos),
+                                  ("title", (self.title or "").strip() or None), ("voiceover", self.voiceover))
+                if v is not None}
 
 
 def _out(r) -> dict:
+    opts = dict(r["options"] or {}) if "options" in r.keys() else {}
     return {"id": str(r["id"]), "year": r["year"], "month": r["month"],
+            "title": opts.get("title"), "target_s": opts.get("target_s"), "voiceover": opts.get("voiceover"),
+            "script": opts.get("script"),
             "event_id": str(r["event_id"]) if r["event_id"] else None, "status": r["status"],
             "narrated": r["narrated"], "aspect": r["aspect"], "duration_s": r["duration_s"], "error": r["error"],
             "url": storage.signed_url(r["storage_key"]) if r["status"] == "ready" else None,
@@ -54,14 +67,15 @@ async def create_reel(body: ReelIn, s: Session = Depends(require_role("owner", "
         raise HTTPException(400, "This room has no saved memories yet, so there is nothing to put in a reel.")
     busy = await db.fetchrow(
         "SELECT * FROM reels WHERE family_id=$1::uuid AND year=$2 AND month=$3 AND status IN ('queued','rendering') "
-        "AND event_id IS NOT DISTINCT FROM $4::uuid AND aspect=$5 AND narrated=$6",
-        s.family_id, body.year, body.month, body.event_id, body.aspect, body.narrated)
+        "AND event_id IS NOT DISTINCT FROM $4::uuid AND aspect=$5 AND narrated=$6 "
+        "AND (options - 'script') = $7::jsonb",
+        s.family_id, body.year, body.month, body.event_id, body.aspect, body.narrated, body.options())
     if busy:
         return _out(busy)
     r = await db.fetchrow(
-        "INSERT INTO reels(family_id, year, month, event_id, narrated, aspect, requested_by) "
-        "VALUES ($1::uuid,$2,$3,$4::uuid,$5,$6,$7::uuid) RETURNING *",
-        s.family_id, body.year, body.month, body.event_id, body.narrated, body.aspect, s.member_id)
+        "INSERT INTO reels(family_id, year, month, event_id, narrated, aspect, requested_by, options) "
+        "VALUES ($1::uuid,$2,$3,$4::uuid,$5,$6,$7::uuid,$8::jsonb) RETURNING *",
+        s.family_id, body.year, body.month, body.event_id, body.narrated, body.aspect, s.member_id, body.options())
     await jobs.enqueue("render_reel", {"reel_id": str(r["id"])}, max_attempts=2)
     return _out(r)
 

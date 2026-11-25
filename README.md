@@ -54,7 +54,7 @@ Memo has two halves. **Capture** happens in Telegram: a message becomes a memory
 
 If more than one event matches, the receptionist asks one clarifying question before it plans a route.
 
-**Floors and rooms.** The first year with memories is the ground floor beside the lobby; each later year is one floor up. Rooms are open, locked, not yet, empty, or closed with care. Memories with an unknown date wait in the attic, shown in the lobby.
+**Floors and rooms.** Every family's museum uses the same fixed calendar: 2002 is the ground floor beside the lobby and each later year is one floor up, so 2026 is the 25th floor (years before 2002 are basements; floors go up to next year). Rooms are open, locked, not yet, empty, or closed with care. Memories with an unknown date wait in the attic, shown in the lobby.
 
 <img src="media/readme/divider.svg" width="100%">
 

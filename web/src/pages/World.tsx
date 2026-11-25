@@ -6,7 +6,7 @@ import { Mode2D } from './Mode2D';
 import { AtticPanel, DirectoryPanel, LiftPanel, OpsPanel, SettingsPanel } from './Panels';
 import { ReceptionPanel } from './Reception';
 import { CleanupPanel, ExhibitModal, ReelsPanel } from './RoomUi';
-import { ScreenView, TheaterPanel, useShowcaseEngine } from './Theater';
+import { ScreenOverlay, ScreenView, TheaterPanel, useShowcaseEngine } from './Theater';
 import { useLiveStream } from './stream';
 import { usePresence } from './presence';
 
@@ -94,5 +94,5 @@ export function World() {
 
 function TheaterHost() {
   const screenMode = useWorld((s) => s.screenMode);
-  return screenMode ? null : <TheaterPanel />;
+  return screenMode ? <ScreenOverlay /> : <TheaterPanel />;
 }

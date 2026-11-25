@@ -24,8 +24,12 @@ export type ModalSize = 'sm' | 'md' | 'lg';
  * Centered pop-up over the current view. Focus trap, Esc and backdrop close (blocked while busy),
  * focus returns on close, stacks (only the top one reacts), bottom sheet on phones.
  */
-export function Modal({ title, onClose, children, wide, size, label, footer, busy }: {
+export function Modal({ title, onClose, children, wide, size, label, footer, busy, className, layerClassName, kicker }: {
   title: string; onClose: () => void; children: ReactNode; wide?: boolean; size?: ModalSize; label?: string; footer?: ReactNode; busy?: boolean;
+  /** Extra class on the dialog / on the backdrop layer (e.g. a blurred backdrop over a page). */
+  className?: string; layerClassName?: string;
+  /** Small line above the title. */
+  kicker?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose); closeRef.current = onClose;
@@ -59,9 +63,9 @@ export function Modal({ title, onClose, children, wide, size, label, footer, bus
     };
   }, []);
   return createPortal(
-    <div className="modal-layer" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div className={`modal modal--${sz}`} role="dialog" aria-modal="true" aria-label={label ?? title} aria-labelledby={label ? undefined : titleId} aria-busy={busy || undefined} tabIndex={-1} ref={ref}>
-        <div className="modal-head"><h2 className="modal-title" id={titleId}>{title}</h2><button className="btn icon-btn" onClick={onClose} disabled={busy} aria-label="Close">X</button></div>
+    <div className={'modal-layer' + (layerClassName ? ' ' + layerClassName : '')} onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <div className={`modal modal--${sz}` + (className ? ' ' + className : '')} role="dialog" aria-modal="true" aria-label={label ?? title} aria-labelledby={label ? undefined : titleId} aria-busy={busy || undefined} tabIndex={-1} ref={ref}>
+        <div className="modal-head"><div>{kicker && <p className="modal-kicker">{kicker}</p>}<h2 className="modal-title" id={titleId}>{title}</h2></div><button className="btn icon-btn" onClick={onClose} disabled={busy} aria-label="Close">X</button></div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
       </div>

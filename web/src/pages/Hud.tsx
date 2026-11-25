@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Interactable } from '../contract';
 import { useWorld } from '../state/worldStore';
 import { useVoiceUi, voice } from '../voice/controller';
 import { Brand, Orb, monthName } from '../ui/common';
+import { floorWithYear } from '../lib/floors';
 
 function promptFor(i: Interactable, s: ReturnType<typeof useWorld.getState>): string {
   switch (i.kind) {
@@ -24,10 +25,14 @@ export function Hud() {
   const s = useWorld();
   const ui = useVoiceUi();
   const [text, setText] = useState('');
+  // Screen mode: subtitles are a compact, scrollable strip that can be hidden; keep the newest line in view.
+  const [capsHidden, setCapsHidden] = useState(false);
+  const capsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { const el = capsRef.current; if (el) el.scrollTop = el.scrollHeight; }, [s.captions, s.liveTranscript]);
   const target = s.seat ? 'grandma' : 'receptionist';
   const grandma = s.museum?.family.grandma_name ?? 'Grandma';
   const guest = !!s.museum?.me.is_guest;
-  const place = s.seat ? `${monthName(s.seat.month)} ${s.seat.year}` : s.mode === 'lobby' ? 'Lobby' : s.mode === 'walking' ? 'On the way' : s.mode === 'riding' ? 'In the lift' : `Floor ${s.currentLevel}`;
+  const place = s.seat ? `${monthName(s.seat.month)} ${s.seat.year}` : s.mode === 'lobby' ? 'Lobby' : s.mode === 'walking' ? 'On the way' : s.mode === 'riding' ? 'In the lift' : floorWithYear(s.currentLevel);
 
   // Keys. E interacts with what the world says is nearby; the rest mirror the buttons.
   useEffect(() => {
@@ -39,6 +44,7 @@ export function Hud() {
       const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if ((e.key === 'Escape' || (e.key === ' ' && !inField)) && voice.interruptByKey(e.key === ' ' ? 'space' : 'Esc')) { e.preventDefault(); return; }
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      if (e.key === ' ' && el?.tagName === 'BUTTON') return;   // a focused button handles space itself (no double toggle)
       const w = useWorld.getState();
       if (e.key === 'Escape') {
         if (w.screenMode) { w.setScreenMode(false); w.setShowcase({ showcasePlaying: false }); }
@@ -94,7 +100,8 @@ export function Hud() {
       </div>
 
       <div className="hud-bottom">
-        <div className="captions" aria-live="polite" aria-label="Captions">
+        {s.screenMode && <button type="button" className="btn btn-sm cap-toggle" aria-pressed={!capsHidden} aria-controls="hud-captions" onClick={() => setCapsHidden(!capsHidden)} title={capsHidden ? 'Show subtitles' : 'Hide subtitles'}>{capsHidden ? 'CC' : 'CC on'}</button>}
+        <div id="hud-captions" ref={capsRef} className={'captions' + (s.screenMode && capsHidden ? ' is-collapsed' : '')} aria-live="polite" aria-label="Captions">
           {s.captions.slice(-3).map((c) => <p key={c.id} className={`cap cap--${c.who}` + (c.final ? '' : ' cap--live')}>{c.text || '...'}</p>)}
           {s.liveTranscript && <p className="cap cap--you cap--live">{s.liveTranscript}</p>}
           {ui.error && <p className="cap cap--system" role="alert">{ui.error}</p>}
