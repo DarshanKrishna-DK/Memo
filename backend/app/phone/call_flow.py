@@ -108,11 +108,19 @@ def signature_ok(request, params: list[tuple[str, str]]) -> bool:
         return False
     q = request.url.query
     url = config.PUBLIC_BASE_URL + request.url.path + (f"?{q}" if q else "")
-    ok = hmac.compare_digest(twilio_signature(token, url, params if request.method == "POST" else []), sent)
+    body = params if request.method == "POST" else []
+    # Same variants Twilio's official RequestValidator accepts: the URL as configured and with the default port
+    # (Twilio sometimes signs "https://host:443/path").
+    variants = [url]
+    scheme, _, rest = url.partition("://")
+    host, slash, path = rest.partition("/")
+    if ":" not in host:
+        variants.append(f"{scheme}://{host}:{443 if scheme == 'https' else 80}{slash}{path}")
+    ok = any(hmac.compare_digest(twilio_signature(token, u, body), sent) for u in variants)
     if not ok:
         import logging
-        logging.getLogger("memo.twilio").warning("signature mismatch for %s (params=%d, host=%s, fwd_host=%s)", url,
-                                                 len(params), request.headers.get("host"),
+        logging.getLogger("memo.twilio").warning("signature mismatch for %s (keys=%s, host=%s, fwd_host=%s)", url,
+                                                 ",".join(k for k, _ in params), request.headers.get("host"),
                                                  request.headers.get("x-forwarded-host"))
     return ok
 

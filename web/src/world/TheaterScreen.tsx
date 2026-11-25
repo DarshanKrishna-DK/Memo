@@ -19,6 +19,9 @@ export function TheaterScreen({
   const photo = usePhoto(photoUrl);
   const thumb = usePhoto(item?.kind === 'photo' && !photo ? item.thumb_url : null);
   const src = photo ?? thumb;
+  // Warm the next item's picture so stepping forward (e.g. off a video) shows it at once.
+  const next = useWorld((s) => s.showcaseItems[s.showcaseIndex + 1]);
+  usePhoto(next?.kind === 'photo' ? next.url ?? next.thumb_url : next?.kind === 'video' ? next.poster_url ?? next.thumb_url : null);
 
   // Video items: the poster until it starts, then the shared <video> as a texture, letterboxed (phone videos are tall).
   const isVideo = item?.kind === 'video';
@@ -153,7 +156,9 @@ export function TheaterScreen({
     <group onPointerDown={onDown} onPointerUp={onUp}>
       <mesh>
         <planeGeometry args={[SCREEN.w, SCREEN.h]} />
-        {showVideo ? <meshBasicMaterial color="#000000" toneMapped={false} /> : <meshBasicMaterial map={showPhoto ? view : card} toneMapped={false} />}
+        {/* Separate keyed materials: three.js does not recompile a program when `map` goes from unset to set, so reusing
+            the video's black backdrop material for the next photo rendered a blank (untextured) screen. */}
+        {showVideo ? <meshBasicMaterial key="backdrop" color="#000000" toneMapped={false} /> : <meshBasicMaterial key="map" map={showPhoto ? view : card} toneMapped={false} />}
       </mesh>
       {showVideo && (
         <mesh position={[0, 0, 0.003]}>

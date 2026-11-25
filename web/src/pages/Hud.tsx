@@ -43,6 +43,13 @@ export function Hud() {
       // Esc (even from the text box) or space (outside it) while an agent talks stops them; the key is used up.
       const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if ((e.key === 'Escape' || (e.key === ' ' && !inField)) && voice.interruptByKey(e.key === ' ' ? 'space' : 'Esc')) { e.preventDefault(); return; }
+      // Arrows on the video (or its seek bar) still step through the show, in and out of full screen.
+      const mediaEl = !!el && (el.tagName === 'VIDEO' || (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'range' && !!el.closest('.media-bar')));
+      if (mediaEl && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && useWorld.getState().seat) {
+        e.preventDefault();
+        if (!useWorld.getState().museum?.me.is_guest) { if (e.key === 'ArrowRight') useWorld.getState().nextItem(); else useWorld.getState().prevItem(); }
+        return;
+      }
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
       if (e.key === ' ' && el?.tagName === 'BUTTON') return;   // a focused button handles space itself (no double toggle)
       const w = useWorld.getState();

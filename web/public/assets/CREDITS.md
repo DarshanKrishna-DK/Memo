@@ -17,4 +17,4 @@ commercially licensed base mesh before any commercial launch.
 
 ## Demo Diwali media
 
-Demo photos and videos for the "Diwali 2026" event are from Wikimedia Commons, used under CC BY / CC BY-SA. Per-file author, license and source URL are in `data/gallery/diwali/CREDITS.md`. Authors: Slyronit, Alokjain19883105, Le Priyavrat, Sriram Jagannathan (CC BY 2.0), Savvywriter, AjoyDutta1997 / Aristeas, Ramesh NG, Rajesh dangi (uploader of Knadil.JPG), Sridhar G (videos).
+Demo photos and videos for the "Diwali 2026" event are from Wikimedia Commons, used under CC BY / CC BY-SA. Per-file author, license and source URL are in `data/gallery/diwali/CREDITS.md`. Authors: Slyronit, Alokjain19883105, Sriram Jagannathan (CC BY 2.0), Savvywriter, AjoyDutta1997 / Aristeas, Rajesh dangi (uploader of Knadil.JPG), Abhinaba Basu (CC BY 2.0), Jon Robson (CC BY 2.0), robertsharp (CC BY 2.0), Gpkp (video, CC BY-SA 4.0), Pratiksha (video, CC BY-SA 3.0).

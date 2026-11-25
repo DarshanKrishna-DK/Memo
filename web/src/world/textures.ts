@@ -234,17 +234,19 @@ export function flushPhotos() {
 
 /** React hook: a photo texture for `url` (null while loading / on failure). */
 export function usePhoto(url: string | null | undefined): THREE.Texture | null {
-  const [tex, setTex] = useState<THREE.Texture | null>(null);
+  // Remember which url the texture belongs to: while a new url loads (or if it never loads) we return null rather
+  // than the previous picture, so the screen can never keep showing the last item's photo.
+  const [st, setSt] = useState<{ url: string; tex: THREE.Texture | null } | null>(null);
   useEffect(() => {
-    if (!url) { setTex(null); return; }
+    if (!url) { setSt(null); return; }
     let live = true;
-    acquirePhoto(url).then((t) => { if (live) setTex(t); }).catch(() => { if (live) setTex(null); });
+    acquirePhoto(url).then((t) => { if (live) setSt({ url, tex: t }); }).catch(() => { if (live) setSt({ url, tex: null }); });
     return () => {
       live = false;
       releasePhoto(url);
     };
   }, [url]);
-  return tex;
+  return url && st?.url === url ? st.tex : null;
 }
 
 /** Image aspect (w/h) of a loaded texture. */

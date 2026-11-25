@@ -148,7 +148,7 @@ export function ScreenView() {
   return (
     <div className="fullscreen-screen" aria-label="Showcase screen">
       {!it && <p className="display" style={{ fontSize: '2.6rem' }}>Nothing to show yet</p>}
-      {it?.kind === 'photo' && it.url && <img key={showcaseIndex} className={reducedMotion ? '' : 'zoom'} src={it.url} alt={it.caption} />}
+      {it?.kind === 'photo' && (it.url || it.thumb_url) && <img key={showcaseIndex} className={reducedMotion ? '' : 'zoom'} src={(it.url || it.thumb_url)!} alt={it.caption} />}
       {it?.kind === 'video' && <VideoMount key={showcaseIndex} />}
       {it?.kind === 'title' && <div style={{ maxWidth: 900, padding: 32, textAlign: 'center' }}><p className="display" style={{ fontSize: 'clamp(2.4rem,6vw,5rem)' }}>{it.caption}</p></div>}
       {it?.kind === 'voice' && <div style={{ maxWidth: 800, padding: 32, textAlign: 'center' }}><p className="display" style={{ fontSize: '2.6rem' }}>{it.caption}</p><p style={{ fontSize: 20, marginTop: 16 }}>{it.transcript ?? 'Voice note'}</p></div>}
@@ -245,9 +245,10 @@ export function ScreenOverlay() {
           <button className="btn btn-sm icon-btn" onClick={() => s.nextItem()} disabled={guest || total === 0 || s.showcaseIndex >= total - 1} aria-label="Next (right arrow)" aria-keyshortcuts="ArrowRight"><MediaIcon name="next" /></button>
           <SlideCounter index={s.showcaseIndex} total={total} />
           <p className="screen-caption" aria-live="polite">{item?.caption ?? ''}</p>
+          <button className="btn btn-sm icon-btn" onClick={docFullscreen} aria-pressed={docFull} aria-label={docFull ? 'Leave full screen' : 'Full screen'}><MediaIcon name={docFull ? 'exitfull' : 'full'} /></button>
           <button className="btn btn-sm" onClick={exit} aria-keyshortcuts="Escape">Back to seat</button>
         </div>
-        {item?.kind === 'video' && <TheaterVideoControls onFullscreen={docFullscreen} fullscreen={docFull} />}
+        {item?.kind === 'video' && <TheaterVideoControls />}
       </div>
     </>
   );
