@@ -100,11 +100,31 @@ async def read_params(request) -> list[tuple[str, str]]:
     return parse_qsl((await request.body())[:20000].decode("utf-8", "replace"), keep_blank_values=True)
 
 
+def webhook_token(cs_id: str) -> str:
+    """Per-call secret for Twilio webhook URLs (HMAC of the call session id with APP_SECRET). Used when a proxy in
+    front of us (e.g. a Cloudflare quick tunnel) strips the X-Twilio-Signature header; Twilio's docs allow
+    authenticating webhooks with credentials in the URL."""
+    return hmac.new(config.APP_SECRET.encode(), f"twilio:{cs_id}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def webhook_url(cs_id: str, kind: str) -> str:
+    return f"{config.PUBLIC_BASE_URL}/twilio/voice/{cs_id}/{kind}?t={webhook_token(cs_id)}"
+
+
 def signature_ok(request, params: list[tuple[str, str]]) -> bool:
     """Validate X-Twilio-Signature against PUBLIC_BASE_URL + path. No auth token configured -> reject (never open)."""
     token = config.env("TWILIO_AUTH_TOKEN")
     sent = request.headers.get("x-twilio-signature", "")
+    if not sent:
+        # Header stripped by the proxy: accept only with the per-call secret in the URL.
+        cs_id = (request.path_params or {}).get("cs_id") or ""
+        t = request.query_params.get("t", "")
+        if cs_id and t and hmac.compare_digest(t, webhook_token(cs_id)):
+            return True
     if not token or not sent:
+        import logging
+        logging.getLogger("memo.twilio").warning("twilio webhook without signature (token=%s, header=%s, headers=%s)",
+                                                 bool(token), bool(sent), ",".join(request.headers.keys()))
         return False
     q = request.url.query
     url = config.PUBLIC_BASE_URL + request.url.path + (f"?{q}" if q else "")
@@ -244,7 +264,7 @@ def speak(text: str, url: Optional[str], lang: str) -> str:
 
 def twiml_gather(cs_id: str, lang: str, say: str, say_url: Optional[str], bye: str, bye_url: Optional[str]) -> str:
     """The line is nested INSIDE <Gather> so the guest can talk over it."""
-    action = f"{config.PUBLIC_BASE_URL}/twilio/voice/{cs_id}/turn"
+    action = webhook_url(cs_id, "turn")
     return ('<?xml version="1.0" encoding="UTF-8"?><Response>'
             f'<Gather input="speech" language="{lang}" speechTimeout="auto" actionOnEmptyResult="true" '
             f'hints="{xml_escape(HINTS[lang])}" action="{xml_escape(action)}" method="POST">'

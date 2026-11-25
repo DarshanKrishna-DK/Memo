@@ -58,7 +58,7 @@ async def test_twiml_gather_wraps_line_in_language(world, client, tts_off, lang)
     assert g.get("input") == "speech" and g.get("language") == lang
     say = g.find("Say")                              # opener is INSIDE the gather (guest can talk over it)
     assert say is not None and say.get("language") == lang
-    assert g.get("action").endswith(f"/twilio/voice/{cs}/turn")
+    assert g.get("action").split("?")[0].endswith(f"/twilio/voice/{cs}/turn") and "?t=" in g.get("action")
     if lang == "en-IN":
         assert "automated assistant calling for Memo" in say.text and "Asha" in say.text and "November 2026" in say.text
     assert (await db.fetchval("SELECT status FROM call_sessions WHERE id=$1", cs)) == "talking"

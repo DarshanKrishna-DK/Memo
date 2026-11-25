@@ -186,7 +186,7 @@ async def preflight(family_id: str, contact: Any, invite_expires: Optional[datet
     if settings.get("call_quiet_hours", True) and in_quiet_hours(contact["timezone"], now):
         raise CallRefused("quiet_hours",
                           f"It is between 9 pm and 8 am for {contact['name']}. Memo does not call at night.")
-    if settings.get("call_hourly_limit", True):
+    if settings.get("call_hourly_limit", False):
         n = await db.fetchval(
             "SELECT count(*) FROM call_sessions cs JOIN invites i ON i.id=cs.invite_id "
             "WHERE i.contact_id=$1 AND cs.started_at > now() - interval '1 hour' "
@@ -254,8 +254,9 @@ async def place_call(family_id: str, invite_id: str) -> dict:
                                   "contact_name": c["name"]})
     base = config.PUBLIC_BASE_URL
     try:
-        data = await _twilio_create_call(c["phone_e164"], f"{base}/twilio/voice/{cs_id}/twiml",
-                                         f"{base}/twilio/voice/{cs_id}/status")
+        from . import call_flow as _cf
+        data = await _twilio_create_call(c["phone_e164"], _cf.webhook_url(cs_id, "twiml"),
+                                         _cf.webhook_url(cs_id, "status"))
     except Exception as e:  # noqa: BLE001
         await finish_call(cs_id, "failed", "The call could not be placed: " + str(e)[:200])
         raise CallRefused("twilio_error", str(e)[:220], 502) from e
