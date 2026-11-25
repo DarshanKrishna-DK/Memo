@@ -255,6 +255,7 @@ async def place_call(family_id: str, invite_id: str) -> dict:
     base = config.PUBLIC_BASE_URL
     try:
         from . import call_flow as _cf
+        await _cf.prepare_opener(cs_id)
         data = await _twilio_create_call(c["phone_e164"], _cf.webhook_url(cs_id, "twiml"),
                                          _cf.webhook_url(cs_id, "status"))
     except Exception as e:  # noqa: BLE001

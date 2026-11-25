@@ -26,8 +26,8 @@ log = logging.getLogger("memo.phone.call")
 MAX_TURNS = 6
 MAX_REPLY_WORDS = 22
 MAX_MESSAGES = 5
-LLM_TIMEOUT_S = 6.0
-TTS_TIMEOUT_S = 3.5
+LLM_TIMEOUT_S = 5.0
+TTS_TIMEOUT_S = 3.0
 OPENER_TTS_TIMEOUT_S = 8.0
 
 MONTHS = {
@@ -277,6 +277,18 @@ def twiml_hangup(text: str, url: Optional[str], lang: str) -> str:
 
 # ------------------------------------------------------------------ turns
 
+_PREPARED: dict[str, Optional[str]] = {}   # cs_id -> opener audio URL prepared before dialling (None = use <Say>)
+
+
+async def prepare_opener(cs_id: str) -> None:
+    """Synthesise the opener BEFORE the call is placed (Twilio gives the TwiML request ~15 s; TTS can take ~10 s)."""
+    call = await load_call(cs_id)
+    if not call:
+        return
+    ctx = context(call)
+    _PREPARED[cs_id] = await speech_url(opener_text(ctx), ctx["lang"], OPENER_TTS_TIMEOUT_S)
+
+
 async def start(cs_id: str) -> str:
     call = await load_call(cs_id)
     if not call or call["ended_at"]:
@@ -285,7 +297,7 @@ async def start(cs_id: str) -> str:
     await inv.set_progress(cs_id, "talking")
     text = opener_text(ctx)
     await _log(cs_id, "agent", text)
-    url = await speech_url(text, ctx["lang"], OPENER_TTS_TIMEOUT_S)
+    url = _PREPARED.pop(cs_id, None)   # never synthesise while Twilio waits; fall back to <Say>
     bye = LINES["goodbye"][ctx["lang"]]
     return twiml_gather(cs_id, ctx["lang"], text, url, bye, None)
 
